@@ -1,0 +1,594 @@
+# Seed catalog for `manage.py seed_catalog`. Idempotent — safe to re-run.
+#
+# Ported from cardiology-feed/specialties/*.json and deduplicated: 60 config
+# entries collapse to 53 journals. `nlm_uid`, `medline_ta` and the ISSNs are
+# left blank here and filled in by `manage.py resolve_journals`, which is what
+# finally merges pairs like "Heart" and "Heart (British Cardiac Society)".
+#
+# cover_color is OUR palette, not the journal's brand colour — covers use our
+# typeface and a plain abbreviation. Nominative reference is defensible;
+# recreating a trademarked lockup is not.
+#
+# Vocabulary notes: a title/abstract keyword ending in "*" matches a word stem.
+# The original configs used exact words only, which dropped real papers from a
+# cardiologist's NEJM feed ("Cardiotoxic Effects after Gene Therapy", "Severe
+# Tricuspid Regurgitation"). Stems matter more than they look, because only
+# ~14% of freshly indexed papers carry any MeSH terms at all.
+
+specialties:
+- slug: cardiology
+  name: Cardiology
+  description: Cardiovascular medicine — heart failure, electrophysiology, interventional, imaging, prevention.
+  sort_order: 10
+  mesh_terms:
+  - Cardiovascular Diseases
+  - Heart Diseases
+  - Cardiology
+  - Myocardial Infarction
+  - Heart Failure
+  - Arrhythmias, Cardiac
+  - Coronary Artery Disease
+  - Atrial Fibrillation
+  - Hypertension
+  - Stroke
+  - Heart Valve Diseases
+  - Cardiomyopathies
+  - Atherosclerosis
+  - Percutaneous Coronary Intervention
+  - Anticoagulants
+  title_keywords:
+  - cardi*
+  - myocard*
+  - arrhythm*
+  - atheroscler*
+  - hypertens*
+  - anticoagul*
+  - antiplatelet*
+  - echocardiograph*
+  - valvular
+  - heart
+  - coronary
+  - aortic
+  - mitral
+  - tricuspid
+  - ventricular
+  - atrial fibrillation
+  - heart failure
+  - ejection fraction
+  - stent
+  - statin
+  - ablation
+  - lipoprotein
+  abstract_keywords:
+  - heart failure
+  - myocardial infarction
+  - atrial fibrillation
+  - coronary artery disease
+  - ejection fraction
+- slug: gp
+  name: General Practice
+  description: Primary care and family medicine.
+  sort_order: 20
+  mesh_terms:
+  - Primary Health Care
+  - General Practice
+  - Family Practice
+  - Physicians, Family
+  - General Practitioners
+  - Community Health Services
+  - Preventive Medicine
+  title_keywords:
+  - general practice
+  - general practitioner*
+  - primary care
+  - family medicine
+  - family practice
+  - communit*
+  - multimorbidity
+  - polypharmacy
+  - screening
+  - vaccinat*
+  - immunisation
+  - immunization
+  abstract_keywords:
+  - primary care
+  - general practice
+- slug: spine
+  name: Spine Surgery
+  description: Spinal surgery, deformity and disorders of the spine.
+  sort_order: 30
+  mesh_terms:
+  - Spinal Diseases
+  - Spine
+  - Spinal Fusion
+  - Intervertebral Disc Degeneration
+  - Scoliosis
+  - Spinal Cord Injuries
+  - Low Back Pain
+  - Spinal Stenosis
+  - Lumbar Vertebrae
+  - Cervical Vertebrae
+  title_keywords:
+  - spin*
+  - vertebra*
+  - discectom*
+  - laminectom*
+  - scolio*
+  - kypho*
+  - myelopath*
+  - radiculopath*
+  - lumbar
+  - cervical
+  - intervertebral
+  - disc herniation
+  - low back pain
+  - spondylolisthesis
+  - arthrodesis
+  abstract_keywords:
+  - spinal fusion
+  - low back pain
+  - lumbar spine
+
+journals:
+- slug: circulation
+  pubmed_name: Circulation
+  display_name: Circulation
+  short_name: Circ
+  is_general: false
+  cover_color: '#9f1239'
+  specialties:
+  - cardiology
+- slug: journal-of-the-american-college-of-cardiology
+  pubmed_name: Journal of the American College of Cardiology
+  display_name: Journal of the American College of Cardiology
+  short_name: JACC
+  is_general: false
+  cover_color: '#be123c'
+  specialties:
+  - cardiology
+- slug: european-heart-journal
+  pubmed_name: European Heart Journal
+  display_name: European Heart Journal
+  short_name: EHJ
+  is_general: false
+  cover_color: '#e11d48'
+  specialties:
+  - cardiology
+- slug: jama-cardiology
+  pubmed_name: JAMA Cardiology
+  display_name: JAMA Cardiology
+  short_name: JAMA Card
+  is_general: false
+  cover_color: '#881337'
+  specialties:
+  - cardiology
+- slug: circulation-heart-failure
+  pubmed_name: 'Circulation: Heart Failure'
+  display_name: 'Circulation: Heart Failure'
+  short_name: Circ HF
+  is_general: false
+  cover_color: '#9f1239'
+  specialties:
+  - cardiology
+- slug: circulation-arrhythmia-and-electrophysiology
+  pubmed_name: 'Circulation: Arrhythmia and Electrophysiology'
+  display_name: 'Circulation: Arrhythmia and Electrophysiology'
+  short_name: Circ EP
+  is_general: false
+  cover_color: '#be123c'
+  specialties:
+  - cardiology
+- slug: heart
+  pubmed_name: Heart
+  display_name: Heart
+  short_name: Heart
+  is_general: false
+  cover_color: '#e11d48'
+  specialties:
+  - cardiology
+- slug: american-heart-journal
+  pubmed_name: American Heart Journal
+  display_name: American Heart Journal
+  short_name: AHJ
+  is_general: false
+  cover_color: '#881337'
+  specialties:
+  - cardiology
+- slug: jacc-heart-failure
+  pubmed_name: 'JACC: Heart Failure'
+  display_name: 'JACC: Heart Failure'
+  short_name: JACC HF
+  is_general: false
+  cover_color: '#9f1239'
+  specialties:
+  - cardiology
+- slug: jacc-cardiovascular-imaging
+  pubmed_name: 'JACC: Cardiovascular Imaging'
+  display_name: 'JACC: Cardiovascular Imaging'
+  short_name: JACC Img
+  is_general: false
+  cover_color: '#be123c'
+  aliases:
+  - JACC Cardiovascular Imaging
+  specialties:
+  - cardiology
+- slug: heart-british-cardiac-society
+  pubmed_name: Heart (British Cardiac Society)
+  display_name: Heart (British Cardiac Society)
+  short_name: Heart
+  is_general: false
+  cover_color: '#e11d48'
+  specialties:
+  - cardiology
+- slug: heart-rhythm
+  pubmed_name: Heart Rhythm
+  display_name: Heart Rhythm
+  short_name: HeartRhythm
+  is_general: false
+  cover_color: '#881337'
+  specialties:
+  - cardiology
+- slug: jacc-cardiooncology
+  pubmed_name: JACC CardioOncology
+  display_name: JACC CardioOncology
+  short_name: JACC CO
+  is_general: false
+  cover_color: '#9f1239'
+  specialties:
+  - cardiology
+- slug: european-heart-journal-cardiovascular-imaging
+  pubmed_name: European Heart Journal Cardiovascular Imaging
+  display_name: European Heart Journal Cardiovascular Imaging
+  short_name: EHJ Img
+  is_general: false
+  cover_color: '#be123c'
+  specialties:
+  - cardiology
+- slug: european-heart-journal-cardio-oncology
+  pubmed_name: European Heart Journal Cardio-Oncology
+  display_name: European Heart Journal Cardio-Oncology
+  short_name: EHJ CO
+  is_general: false
+  cover_color: '#e11d48'
+  specialties:
+  - cardiology
+  is_active: false
+  inactive_reason: not indexed in PubMed under any title as of 2026-07
+- slug: jacc-cardiovascular-interventions
+  pubmed_name: JACC Cardiovascular Interventions
+  display_name: JACC Cardiovascular Interventions
+  short_name: JACC Int
+  is_general: false
+  cover_color: '#881337'
+  specialties:
+  - cardiology
+- slug: european-journal-of-preventive-cardiology
+  pubmed_name: European Journal of Preventive Cardiology
+  display_name: European Journal of Preventive Cardiology
+  short_name: EJPC
+  is_general: false
+  cover_color: '#9f1239'
+  specialties:
+  - cardiology
+- slug: new-england-journal-of-medicine
+  pubmed_name: The New England journal of medicine
+  display_name: The New England journal of medicine
+  short_name: NEJM
+  is_general: true
+  cover_color: '#1e3a5f'
+  aliases:
+  - New England Journal of Medicine
+  specialties:
+  - cardiology
+  - gp
+  - spine
+- slug: lancet
+  pubmed_name: Lancet
+  display_name: The Lancet
+  short_name: Lancet
+  is_general: true
+  cover_color: '#334155'
+  aliases:
+  - Lancet
+  - The Lancet
+  specialties:
+  - cardiology
+  - gp
+  - spine
+- slug: nature
+  pubmed_name: Nature
+  display_name: Nature
+  short_name: Nature
+  is_general: true
+  cover_color: '#0f172a'
+  specialties:
+  - cardiology
+  - spine
+- slug: annals-of-family-medicine
+  pubmed_name: Annals of Family Medicine
+  display_name: Annals of Family Medicine
+  short_name: Ann Fam Med
+  is_general: false
+  cover_color: '#166534'
+  specialties:
+  - gp
+- slug: journal-of-the-american-board-of-family-medicine
+  pubmed_name: J Am Board Fam Med
+  display_name: Journal of the American Board of Family Medicine
+  short_name: ABFM
+  is_general: false
+  cover_color: '#15803d'
+  specialties:
+  - gp
+  aliases:
+  - Journal of the American Board of Family Medicine
+- slug: family-medicine
+  pubmed_name: Family Medicine
+  display_name: Family Medicine
+  short_name: Fam Med
+  is_general: false
+  cover_color: '#047857'
+  specialties:
+  - gp
+- slug: journal-of-primary-care-community-health
+  pubmed_name: Journal of Primary Care & Community Health
+  display_name: Journal of Primary Care & Community Health
+  short_name: PCCH
+  is_general: false
+  cover_color: '#065f46'
+  specialties:
+  - gp
+- slug: british-journal-of-general-practice
+  pubmed_name: Br J Gen Pract
+  display_name: British Journal of General Practice
+  short_name: BJGP
+  is_general: false
+  cover_color: '#166534'
+  specialties:
+  - gp
+  aliases:
+  - British Journal of General Practice
+- slug: bjgp-open
+  pubmed_name: BJGP Open
+  display_name: BJGP Open
+  short_name: BJGP Open
+  is_general: false
+  cover_color: '#15803d'
+  specialties:
+  - gp
+- slug: european-journal-of-general-practice
+  pubmed_name: Eur J Gen Pract
+  display_name: European Journal of General Practice
+  short_name: EGP
+  is_general: false
+  cover_color: '#047857'
+  specialties:
+  - gp
+  aliases:
+  - European Journal of General Practice
+- slug: family-practice
+  pubmed_name: Family Practice
+  display_name: Family Practice
+  short_name: Fam Pract
+  is_general: false
+  cover_color: '#065f46'
+  specialties:
+  - gp
+- slug: scandinavian-journal-of-primary-health-care
+  pubmed_name: Scandinavian Journal of Primary Health Care
+  display_name: Scandinavian Journal of Primary Health Care
+  short_name: SPHC
+  is_general: false
+  cover_color: '#166534'
+  specialties:
+  - gp
+- slug: primary-health-care-research-development
+  pubmed_name: Primary Health Care Research & Development
+  display_name: Primary Health Care Research & Development
+  short_name: PHCRD
+  is_general: false
+  cover_color: '#15803d'
+  specialties:
+  - gp
+- slug: bmc-primary-care
+  pubmed_name: BMC Primary Care
+  display_name: BMC Primary Care
+  short_name: BMC PC
+  is_general: false
+  cover_color: '#047857'
+  specialties:
+  - gp
+- slug: journal-of-family-medicine-and-primary-care
+  pubmed_name: Journal of Family Medicine and Primary Care
+  display_name: Journal of Family Medicine and Primary Care
+  short_name: FMPC
+  is_general: false
+  cover_color: '#065f46'
+  specialties:
+  - gp
+- slug: journal-of-primary-health-care
+  pubmed_name: Journal of Primary Health Care
+  display_name: Journal of Primary Health Care
+  short_name: PHC
+  is_general: false
+  cover_color: '#166534'
+  specialties:
+  - gp
+- slug: journal-of-rural-medicine
+  pubmed_name: J Rural Med
+  display_name: Journal of Rural Medicine
+  short_name: Rural Medicine
+  is_general: false
+  cover_color: '#15803d'
+  specialties:
+  - gp
+  aliases:
+  - Journal of Rural Medicine
+- slug: journal-of-family-and-community-medicine
+  pubmed_name: Journal of Family & Community Medicine
+  display_name: Journal of Family and Community Medicine
+  short_name: FCM
+  is_general: false
+  cover_color: '#047857'
+  specialties:
+  - gp
+  aliases:
+  - Journal of Family and Community Medicine
+- slug: african-journal-of-primary-health-care-family-medicine
+  pubmed_name: African Journal of Primary Health Care & Family Medicine
+  display_name: African Journal of Primary Health Care & Family Medicine
+  short_name: APHCFM
+  is_general: false
+  cover_color: '#065f46'
+  specialties:
+  - gp
+- slug: canadian-journal-of-rural-medicine
+  pubmed_name: Can J Rural Med
+  display_name: Canadian Journal of Rural Medicine
+  short_name: CRM
+  is_general: false
+  cover_color: '#166534'
+  specialties:
+  - gp
+  aliases:
+  - Canadian Journal of Rural Medicine
+- slug: bmj
+  pubmed_name: BMJ
+  display_name: The BMJ
+  short_name: BMJ
+  is_general: true
+  cover_color: '#1e293b'
+  aliases:
+  - BMJ
+  - The BMJ
+  specialties:
+  - gp
+  - spine
+- slug: bmj-open
+  pubmed_name: BMJ Open
+  display_name: BMJ Open
+  short_name: BMJ Open
+  is_general: true
+  cover_color: '#1e3a5f'
+  specialties:
+  - gp
+- slug: jama
+  pubmed_name: JAMA
+  display_name: JAMA
+  short_name: JAMA
+  is_general: true
+  cover_color: '#334155'
+  specialties:
+  - gp
+- slug: bmc-medicine
+  pubmed_name: BMC Medicine
+  display_name: BMC Medicine
+  short_name: BMC Med
+  is_general: true
+  cover_color: '#0f172a'
+  specialties:
+  - gp
+- slug: spine
+  pubmed_name: Spine
+  display_name: Spine
+  short_name: Spine
+  is_general: false
+  cover_color: '#5b21b6'
+  specialties:
+  - spine
+- slug: spine-journal
+  pubmed_name: Spine J
+  display_name: The Spine Journal
+  short_name: Spine J
+  is_general: false
+  cover_color: '#6d28d9'
+  specialties:
+  - spine
+  aliases:
+  - The Spine Journal
+- slug: european-spine-journal
+  pubmed_name: Eur Spine J
+  display_name: European Spine Journal
+  short_name: Eur Spine J
+  is_general: false
+  cover_color: '#7c3aed'
+  specialties:
+  - spine
+  aliases:
+  - European Spine Journal
+- slug: global-spine-journal
+  pubmed_name: Global Spine Journal
+  display_name: Global Spine Journal
+  short_name: Global Spine J
+  is_general: false
+  cover_color: '#4c1d95'
+  specialties:
+  - spine
+- slug: journal-of-spine-surgery
+  pubmed_name: J Spine Surg
+  display_name: Journal of Spine Surgery
+  short_name: J Spine Surg
+  is_general: false
+  cover_color: '#5b21b6'
+  specialties:
+  - spine
+  aliases:
+  - Journal of Spine Surgery
+- slug: clinical-spine-surgery
+  pubmed_name: Clinical Spine Surgery
+  display_name: Clinical Spine Surgery
+  short_name: Clin Spine Surg
+  is_general: false
+  cover_color: '#6d28d9'
+  specialties:
+  - spine
+- slug: spine-surgery-and-related-research
+  pubmed_name: Spine Surgery and Related Research
+  display_name: Spine Surgery and Related Research
+  short_name: SSRR
+  is_general: false
+  cover_color: '#7c3aed'
+  specialties:
+  - spine
+- slug: international-journal-of-spine-surgery
+  pubmed_name: International Journal of Spine Surgery
+  display_name: International Journal of Spine Surgery
+  short_name: ISS
+  is_general: false
+  cover_color: '#4c1d95'
+  specialties:
+  - spine
+- slug: spine-deformity
+  pubmed_name: Spine Deformity
+  display_name: Spine Deformity
+  short_name: Spine Deform
+  is_general: false
+  cover_color: '#5b21b6'
+  specialties:
+  - spine
+- slug: bone-and-joint-journal
+  pubmed_name: The Bone & Joint Journal
+  display_name: The Bone and Joint Journal
+  short_name: BJJ
+  is_general: false
+  cover_color: '#6d28d9'
+  specialties:
+  - spine
+  aliases:
+  - The Bone and Joint Journal
+- slug: journal-of-neurosurgery-spine
+  pubmed_name: 'Journal of Neurosurgery: Spine'
+  display_name: 'Journal of Neurosurgery: Spine'
+  short_name: JNS Spine
+  is_general: false
+  cover_color: '#7c3aed'
+  specialties:
+  - spine
+- slug: world-neurosurgery
+  pubmed_name: World Neurosurgery
+  display_name: World Neurosurgery
+  short_name: World Neurosurg
+  is_general: false
+  cover_color: '#4c1d95'
+  specialties:
+  - spine
