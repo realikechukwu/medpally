@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<!--
+  SYNTHETIC fixture. Every other file in this directory is a real efetch
+  response captured from PubMed; this one is hand-written.
+
+  Rationale: <MedlineDate> is a documented PubMed DTD variant used when an
+  issue carries a range or season instead of a month ("2023 Nov-Dec",
+  "2024 Spring"). It is genuinely rare in current records — a scan of 200
+  recent articles across seven quarterly journals turned up none — but
+  parse_pubdate must still handle it, so the case is covered here with a
+  minimal record trimmed to the elements the parser reads.
+-->
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation Status="MEDLINE" Owner="NLM">
+      <PMID Version="1">99000001</PMID>
+      <Article PubModel="Print">
+        <Journal>
+          <ISSN IssnType="Print">1234-5678</ISSN>
+          <JournalIssue CitedMedium="Print">
+            <Volume>18</Volume>
+            <Issue>4</Issue>
+            <PubDate>
+              <MedlineDate>2023 Nov-Dec</MedlineDate>
+            </PubDate>
+          </JournalIssue>
+          <Title>Journal of Rural Medicine</Title>
+          <ISOAbbreviation>J Rural Med</ISOAbbreviation>
+        </Journal>
+        <ArticleTitle>Seasonal variation in primary care attendance in remote communities.</ArticleTitle>
+        <Abstract>
+          <AbstractText>A retrospective cohort study of attendance patterns across four remote practices over five winters, examining whether seasonal staffing changes altered presentation rates for cardiovascular complaints.</AbstractText>
+        </Abstract>
+        <AuthorList CompleteYN="Y">
+          <Author ValidYN="Y">
+            <LastName>Okafor</LastName>
+            <ForeName>Ada</ForeName>
+            <Initials>A</Initials>
+          </Author>
+        </AuthorList>
+        <PublicationTypeList>
+          <PublicationType UI="D016428">Journal Article</PublicationType>
+          <PublicationType UI="D064888">Observational Study</PublicationType>
+        </PublicationTypeList>
+      </Article>
+      <MedlineJournalInfo>
+        <Country>Japan</Country>
+        <MedlineTA>J Rural Med</MedlineTA>
+        <NlmUniqueID>101512altered</NlmUniqueID>
+        <ISSNLinking>1234-5678</ISSNLinking>
+      </MedlineJournalInfo>
+      <MeshHeadingList>
+        <MeshHeading>
+          <DescriptorName UI="D011320" MajorTopicYN="N">Primary Health Care</DescriptorName>
+        </MeshHeading>
+      </MeshHeadingList>
+    </MedlineCitation>
+    <PubmedData>
+      <History>
+        <PubMedPubDate PubStatus="entrez">
+          <Year>2023</Year>
+          <Month>11</Month>
+          <Day>14</Day>
+        </PubMedPubDate>
+      </History>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">99000001</ArticleId>
+        <ArticleId IdType="doi">10.9999/jrm.2023.0001</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>
