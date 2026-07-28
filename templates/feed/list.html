@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Your feed</h1>
+<p>
+  {% if unseen_only %}
+    <a href="{% url 'feed:list' %}">Show all</a>
+  {% else %}
+    <a href="{% url 'feed:list' %}?unseen=1">Show unseen only</a>
+  {% endif %}
+</p>
+
+<div id="cards">
+  {% include "feed/_cards.html" %}
+</div>
+{% endblock %}

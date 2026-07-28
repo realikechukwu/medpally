@@ -1,0 +1,5 @@
+{% for card in cards %}
+  {% include "feed/_card.html" with paper=card.paper state=card.state is_new=card.is_new trigger_next=forloop.last %}
+{% empty %}
+  <p>No papers yet — check back after tonight's ingestion run, or widen your journal picks in Settings.</p>
+{% endfor %}

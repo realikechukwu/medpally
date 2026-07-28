@@ -1,0 +1,43 @@
+{% load covers %}
+<article id="paper-{{ paper.pmid }}" class="card{% if state and state.first_seen_at %} seen{% endif %}"
+  {% if trigger_next and next_cursor %}
+    hx-get="{% url 'feed:list' %}?cursor={{ next_cursor }}{% if unseen_only %}&unseen=1{% endif %}"
+    hx-trigger="revealed" hx-swap="afterend"
+  {% endif %}>
+  {% if is_new %}<div class="new-divider">New since your last visit</div>{% endif %}
+
+  <div class="card-header">
+    {% journal_cover paper.journal size=40 %}
+    <div>
+      <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
+      <div class="card-date">{{ paper.feed_date }}</div>
+    </div>
+    {% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}
+  </div>
+
+  <h3><a href="{% url 'paper_detail' paper.pmid %}">{{ paper.title }}</a></h3>
+
+  {% with summary=paper.summary %}
+  {% if summary %}
+  <dl class="summary">
+    <dt>{{ summary.study_type }}</dt>
+    <dd>{{ summary.context }}</dd>
+    <dt>Finding</dt>
+    <dd>{{ summary.finding }}</dd>
+    <dt>So what</dt>
+    <dd>{{ summary.so_what }}</dd>
+  </dl>
+  <p class="tags">{% for tag in summary.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</p>
+  {% endif %}
+  {% endwith %}
+
+  <div class="card-actions">
+    {% include "feed/_save_button.html" %}
+    {% include "feed/_like_button.html" %}
+    <form hx-post="{% url 'feed:dismiss' paper.pmid %}" hx-target="closest article" hx-swap="outerHTML" style="display:inline">
+      {% csrf_token %}
+      <button type="submit">Dismiss</button>
+    </form>
+    <a href="{{ paper.url }}" target="_blank" rel="noopener">PubMed</a>
+  </div>
+</article>

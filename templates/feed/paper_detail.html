@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load covers %}
+
+{% block title %}{{ paper.title }} — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<article class="card">
+  <div class="card-header">
+    {% journal_cover paper.journal size=48 %}
+    <div>
+      <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
+      <div class="card-date">{{ paper.feed_date }}</div>
+    </div>
+    {% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}
+  </div>
+
+  <h1>{{ paper.title }}</h1>
+
+  {% with summary=paper.summary %}
+  <dl class="summary">
+    <dt>{{ summary.study_type }}</dt>
+    <dd>{{ summary.context }}</dd>
+    <dt>Finding</dt>
+    <dd>{{ summary.finding }}</dd>
+    <dt>So what</dt>
+    <dd>{{ summary.so_what }}</dd>
+  </dl>
+  <p class="tags">{% for tag in summary.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</p>
+  {% endwith %}
+
+  <p><a href="{{ paper.url }}" target="_blank" rel="noopener">Read on PubMed →</a></p>
+</article>
+{% endblock %}

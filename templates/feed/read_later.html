@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Read Later</h1>
+{% for card in cards %}
+  {% include "feed/_card.html" with paper=card.paper state=card.state is_new=False %}
+{% empty %}
+  <p>Nothing saved yet — tap Save on a card in your feed.</p>
+{% endfor %}
+{% endblock %}

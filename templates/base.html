@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 1rem; }
+    nav { display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; }
+    nav a { text-decoration: none; }
+    nav .spacer { flex: 1; }
+    .wizard-step { color: gray; font-size: 0.9rem; }
+    form p { margin: 0.75rem 0; }
+    fieldset { border: 1px solid #8884; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0; }
+    .journal-group { margin-bottom: 1rem; }
+    .journal-group label { display: block; padding: 0.15rem 0; }
+    .errorlist { color: #b91c1c; padding-left: 1rem; }
+    .messages { list-style: none; padding: 0; }
+    .messages li { padding: 0.5rem; border-radius: 4px; background: #dcfce7; margin-bottom: 0.5rem; }
+    button, input[type=submit] { padding: 0.5rem 1rem; cursor: pointer; }
+
+    .card { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .card.seen { opacity: 0.7; }
+    .card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .card-journal { font-weight: 600; font-size: 0.9rem; }
+    .card-date { color: gray; font-size: 0.8rem; }
+    .badge { margin-left: auto; background: #b91c1c; color: #fff; font-size: 0.75rem;
+             padding: 0.15rem 0.5rem; border-radius: 4px; }
+    .new-divider { color: #2563eb; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .summary dt { font-weight: 600; margin-top: 0.5rem; }
+    .summary dd { margin: 0 0 0.25rem 0; }
+    .tag { display: inline-block; background: #8882; border-radius: 4px; padding: 0.1rem 0.5rem;
+           font-size: 0.8rem; margin: 0.15rem 0.25rem 0.15rem 0; }
+    .card-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
+    .card-actions form { margin: 0; }
+  </style>
+</head>
+<body>
+  {% if user.is_authenticated %}
+  <nav>
+    <a href="{% url 'feed:list' %}">Feed</a>
+    <a href="{% url 'feed:read_later' %}">Read Later</a>
+    <a href="{% url 'accounts:settings_profile' %}">Settings</a>
+    <span class="spacer"></span>
+    <form method="post" action="{% url 'account_logout' %}" style="margin:0">
+      {% csrf_token %}
+      <button type="submit">Log out</button>
+    </form>
+  </nav>
+  {% endif %}
+
+  {% if messages %}
+  <ul class="messages">
+    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>
