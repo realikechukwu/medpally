@@ -70,3 +70,20 @@ def test_login_works_with_email(client):
     )
     assert resp.status_code == 200
     assert resp.wsgi_request.user.is_authenticated
+
+
+@pytest.mark.parametrize(
+    "url_name",
+    ["account_signup", "account_login", "account_reset_password"],
+)
+def test_auth_pages_inherit_our_base_template(client, url_name):
+    """allauth's stock layout ships no CSS at all.
+
+    Rendered against our dark background that is near-black text on
+    near-black — technically a 200, practically unusable. templates/allauth/
+    layouts/base.html redirects the whole allauth template tree at base.html;
+    if that override stops resolving, these pages silently become unreadable
+    rather than failing, so it is worth an explicit assertion.
+    """
+    resp = client.get(reverse(url_name))
+    assert b"js/htmx" in resp.content, "not rendering through our base.html"

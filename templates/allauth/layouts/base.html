@@ -1,0 +1,11 @@
+{# Every allauth page (login, signup, password reset, email confirm) inherits #}
+{# from this one template, so pointing it at our base.html makes them all     #}
+{# legible in one place.                                                      #}
+{#                                                                            #}
+{# This is not the styled-auth-pages work that was scoped out: allauth's      #}
+{# stock layout ships no CSS at all, which renders as near-black text on our  #}
+{# dark background and is unreadable. The pages stay plain, and allauth's own #}
+{# markup is untouched.                                                       #}
+{% extends "base.html" %}
+
+{% block title %}{% block head_title %}{% endblock head_title %}{% endblock title %}
