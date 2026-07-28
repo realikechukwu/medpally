@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if is_onboarding %}
+  <p class="wizard-step">Step {{ step }} of 3</p>
+  <h1>Pick your journals</h1>
+{% else %}
+  <h1>Journals</h1>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.journals.errors }}
+
+  {% for group_name, journals in groups.items %}
+    {% if journals %}
+    <details class="journal-group" {% if group_name == "Your specialty" %}open{% endif %}>
+      <summary>{{ group_name }} ({{ journals|length }})</summary>
+      {% for journal in journals %}
+        <label>
+          <input type="checkbox" name="journals" value="{{ journal.pk }}"
+                 {% if journal.pk in active_ids %}checked{% endif %}>
+          {{ journal.display_name }}
+        </label>
+      {% endfor %}
+    </details>
+    {% endif %}
+  {% endfor %}
+
+  <input type="submit" value="{% if is_onboarding %}Continue{% else %}Save{% endif %}">
+</form>
+{% endblock %}

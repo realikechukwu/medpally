@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if is_onboarding %}
+  <p class="wizard-step">Step {{ step }} of 3</p>
+  <h1>How often would you like updates?</h1>
+  <p>Emails are coming soon — for now the feed itself updates every night regardless of what you pick here.</p>
+{% else %}
+  <h1>Notifications</h1>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <fieldset>
+    <legend>{{ form.update_frequency.label }}</legend>
+    {{ form.update_frequency.errors }}
+    {% for radio in form.update_frequency %}
+      <label>{{ radio.tag }} {{ radio.choice_label }}</label>
+    {% endfor %}
+  </fieldset>
+  <input type="submit" value="{% if is_onboarding %}Finish{% else %}Save{% endif %}">
+</form>
+{% endblock %}

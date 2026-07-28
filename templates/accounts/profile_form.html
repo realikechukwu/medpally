@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if is_onboarding %}
+  <p class="wizard-step">Step {{ step }} of 3</p>
+  <h1>Tell us about yourself</h1>
+{% else %}
+  <h1>Profile</h1>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <p>
+    {{ form.full_name.label_tag }}
+    {{ form.full_name }}
+    {{ form.full_name.errors }}
+  </p>
+  <p>
+    {{ form.workplace.label_tag }}
+    {{ form.workplace }}
+    {{ form.workplace.errors }}
+  </p>
+  <fieldset>
+    <legend>{{ form.specialty.label }}</legend>
+    {{ form.specialty.errors }}
+    {% for radio in form.specialty %}
+      <label>{{ radio.tag }} {{ radio.choice_label }}</label>
+    {% endfor %}
+  </fieldset>
+  <input type="submit" value="{% if is_onboarding %}Continue{% else %}Save{% endif %}">
+</form>
+{% endblock %}
