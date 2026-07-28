@@ -1,10 +1,10 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
-  <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+  <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <style>
     :root { color-scheme: light dark; }
     body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 1rem; }
@@ -35,6 +35,16 @@
            font-size: 0.8rem; margin: 0.15rem 0.25rem 0.15rem 0; }
     .card-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
     .card-actions form { margin: 0; }
+
+    .hero { padding: 2rem 0 1rem; }
+    .hero h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    .hero .lede { font-size: 1.1rem; color: #8889; }
+    .hero ul { padding-left: 1.1rem; }
+    .cta { display: flex; gap: 0.75rem; margin: 1.5rem 0; flex-wrap: wrap; }
+    .cta a { padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none;
+             border: 1px solid #8886; }
+    .cta a.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .fineprint { color: gray; font-size: 0.85rem; }
   </style>
 </head>
 <body>

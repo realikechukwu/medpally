@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Not found — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>Not found</h1>
+  <p class="lede">That page isn't here. A paper may have been withdrawn, or the link may be incomplete.</p>
+  <div class="cta">
+    <a class="primary" href="{% url 'landing' %}">Back to {{ SITE_NAME }}</a>
+  </div>
+</div>
+{% endblock %}

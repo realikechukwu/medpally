@@ -1,0 +1,14 @@
+{# Rendered by django.views.defaults.server_error with NO context, so this
+   template must not depend on context processors (SITE_NAME) or on request. #}
+{% extends "base.html" %}
+{% block title %}Something went wrong{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <h1>Something went wrong</h1>
+  <p class="lede">This one is on us — the error has been logged. Try again in a moment.</p>
+  <div class="cta">
+    <a class="primary" href="/">Back to the feed</a>
+  </div>
+</div>
+{% endblock %}
