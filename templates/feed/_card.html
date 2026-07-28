@@ -1,10 +1,10 @@
 {% load covers %}
 <article id="paper-{{ paper.pmid }}" class="card{% if state and state.first_seen_at %} seen{% endif %}"
   {% if trigger_next and next_cursor %}
-    hx-get="{% url 'feed:list' %}?cursor={{ next_cursor }}{% if unseen_only %}&unseen=1{% endif %}"
+    hx-get="{% url next_url_name|default:'feed:list' %}?cursor={{ next_cursor }}{% if unseen_only %}&unseen=1{% endif %}"
     hx-trigger="revealed" hx-swap="afterend"
   {% endif %}>
-  {% if is_new %}<div class="new-divider">New since your last visit</div>{% endif %}
+  {% if show_new_divider %}<div class="new-divider">New since your last visit</div>{% endif %}
 
   <div class="card-header">
     {% journal_cover paper.journal size=40 %}

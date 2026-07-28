@@ -1,5 +1,9 @@
 {% for card in cards %}
-  {% include "feed/_card.html" with paper=card.paper state=card.state is_new=card.is_new trigger_next=forloop.last %}
+  {% include "feed/_card.html" with paper=card.paper state=card.state show_new_divider=card.show_new_divider trigger_next=forloop.last %}
 {% empty %}
-  <p>No papers yet — check back after tonight's ingestion run, or widen your journal picks in Settings.</p>
+  {% if next_url_name == "feed:read_later" %}
+    <p>Nothing saved yet — tap Save on a card in your feed.</p>
+  {% else %}
+    <p>No papers yet — check back after tonight's ingestion run, or widen your journal picks in Settings.</p>
+  {% endif %}
 {% endfor %}

@@ -226,6 +226,11 @@ def upsert_articles(articles: Sequence[FetchedArticle]) -> tuple[IngestStats, li
             logger.warning(
                 "unresolved journal for pmid %s: %r", article.pmid, article.journal.best_name
             )
+        else:
+            # Recorded here rather than recomputed by the caller: resolution is
+            # several queries per article and doing it twice for the sake of a
+            # log line doubles the cost of the whole ingest.
+            stats.journal_hits[journal.id] = stats.journal_hits.get(journal.id, 0) + 1
         to_upsert.append(_paper_from_article(article, journal))
 
     Paper.objects.bulk_create(

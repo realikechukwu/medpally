@@ -76,7 +76,7 @@ class Command(BaseCommand):
                 run.journals_unresolved += stats.journals_unresolved
                 all_pmids.extend(pmids)
 
-                self._log_journal_hits(run, chunk, articles)
+                self._log_journal_hits(run, chunk, stats.journal_hits)
 
             run.specialty_links_created = services.link_specialties_for_papers(all_pmids)
             self.stdout.write(
@@ -111,7 +111,7 @@ class Command(BaseCommand):
         return services.default_ingest_window(lookback_days=options.get("since_days"))
 
     def _log_journal_hits(
-        self, run: IngestionRun, chunk: list[Journal], articles: list[Any]
+        self, run: IngestionRun, chunk: list[Journal], hits: dict[int, int]
     ) -> None:
         """One row per journal in the chunk, including zero hits.
 
@@ -120,10 +120,9 @@ class Command(BaseCommand):
         the zero itself is recorded.
         """
         counts = dict.fromkeys((j.id for j in chunk), 0)
-        for article in articles:
-            journal = services.resolve_journal(article.journal, article.journal.best_name)
-            if journal is not None and journal.id in counts:
-                counts[journal.id] += 1
+        for journal_id, count in hits.items():
+            if journal_id in counts:
+                counts[journal_id] = count
 
         JournalFetchLog.objects.bulk_create(
             [

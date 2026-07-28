@@ -371,3 +371,85 @@ def test_public_paper_detail_does_not_render_the_raw_abstract(client, circulatio
     )
     resp = client.get(reverse("paper_detail", args=[paper.pmid]))
     assert b"THIS RAW ABSTRACT TEXT MUST NEVER APPEAR" not in resp.content
+
+
+# ---------------------------------------------------------------- hardening
+
+
+def test_malformed_cursor_falls_back_to_the_first_page(client, user, circulation):
+    """A cursor is a query param, so it arrives tampered with and truncated."""
+    subscribe(user, circulation)
+    make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), title="Still here")
+    client.force_login(user)
+
+    for junk in ("not-base64!!", "", "eyJub3QiOiAiYSBjdXJzb3IifQ==", "///"):
+        resp = client.get(reverse("feed:list"), {"cursor": junk})
+        assert resp.status_code == 200
+        assert b"Still here" in resp.content
+
+
+def test_decode_cursor_returns_none_rather_than_raising():
+    assert services.decode_cursor("not-base64!!") is None
+    assert services.decode_cursor("eyJub3QiOiAiYSBjdXJzb3IifQ==") is None
+
+
+def test_share_page_is_reachable_midway_through_onboarding(client, cardiology, circulation):
+    """The share link is the growth loop; onboarding must not swallow it."""
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), title="Shared note")
+    half_done = User.objects.create_user(email="half@example.com", password="pw12345!")
+    assert half_done.profile.onboarding_completed_at is None
+    client.force_login(half_done)
+
+    resp = client.get(reverse("paper_detail", args=[paper.pmid]))
+    assert resp.status_code == 200
+    assert b"Shared note" in resp.content
+
+
+def test_opening_the_share_page_records_opened_at(client, user, circulation):
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
+    client.force_login(user)
+    client.get(reverse("paper_detail", args=[paper.pmid]))
+    assert UserPaperState.objects.get(user=user, paper=paper).opened_at is not None
+
+
+def test_invisible_paper_cannot_be_saved(client, user, circulation):
+    """Posting the endpoint directly must not reach a paper pulled from the feed."""
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), is_visible=False)
+    client.force_login(user)
+
+    resp = client.post(reverse("feed:toggle_save", args=[paper.pmid]))
+    assert resp.status_code == 404
+    assert not UserPaperState.objects.filter(user=user, paper=paper).exists()
+
+
+def test_new_divider_renders_once_not_per_card(client, user, circulation):
+    subscribe(user, circulation)
+    for i in range(3):
+        make_paper(str(i), journal=circulation, feed_date=date(2026, 7, 20))
+    user.profile.feed_last_viewed_at = "2020-01-01T00:00:00Z"  # everything is new
+    user.profile.save()
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:list"))
+    assert resp.content.count(b"New since your last visit") == 1
+
+
+def test_read_later_paginates(client, user, circulation):
+    subscribe(user, circulation)
+    papers = [
+        make_paper(str(i), journal=circulation, feed_date=date(2026, 7, 20)) for i in range(7)
+    ]
+    client.force_login(user)
+    for paper in papers:
+        client.post(reverse("feed:toggle_save", args=[paper.pmid]))
+
+    seen: set[int] = set()
+    cursor = None
+    for _ in range(10):
+        page = services.get_saved_page(user, cursor=cursor, page_size=3)
+        seen.update(s.paper_id for s in page.states)
+        if not page.next_cursor:
+            break
+        cursor = page.next_cursor
+
+    assert seen == {p.id for p in papers}

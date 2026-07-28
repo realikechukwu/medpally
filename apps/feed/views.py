@@ -39,20 +39,32 @@ def feed_list(request: HttpRequest) -> HttpResponse:
         for paper in page.papers
     ]
 
-    context = {"cards": cards, "next_cursor": page.next_cursor, "unseen_only": unseen_only}
+    # The divider is a heading for the run of new cards, so it belongs above
+    # the first of them exactly once — not stamped on every new card, and not
+    # repeated on page 2 when infinite scroll appends more.
+    if cursor is None:
+        for card in cards:
+            if card["is_new"]:
+                card["show_new_divider"] = True
+                break
+
+    context = {
+        "cards": cards,
+        "next_cursor": page.next_cursor,
+        "unseen_only": unseen_only,
+        "next_url_name": "feed:list",
+    }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/list.html"
     return render(request, template, context)
 
 
 @login_required
 def read_later(request: HttpRequest) -> HttpResponse:
-    states = (
-        UserPaperState.objects.filter(user=request.user, saved_at__isnull=False)
-        .select_related("paper", "paper__journal", "paper__summary")
-        .order_by("-saved_at")
-    )
-    cards = [{"paper": s.paper, "state": s, "is_new": False} for s in states]
-    return render(request, "feed/read_later.html", {"cards": cards})
+    page = services.get_saved_page(request.user, cursor=request.GET.get("cursor") or None)
+    cards = [{"paper": s.paper, "state": s, "is_new": False} for s in page.states]
+    context = {"cards": cards, "next_cursor": page.next_cursor, "next_url_name": "feed:read_later"}
+    template = "feed/_cards.html" if _is_htmx(request) else "feed/read_later.html"
+    return render(request, template, context)
 
 
 def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
@@ -63,7 +75,23 @@ def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
         is_visible=True,
         summary_status=Paper.SummaryStatus.OK,
     )
+    if request.user.is_authenticated:
+        UserPaperState.objects.update_or_create(
+            user=request.user, paper=paper, defaults={"opened_at": timezone.now()}
+        )
     return render(request, "feed/paper_detail.html", {"paper": paper})
+
+
+def _get_actionable_paper(pmid: str) -> Paper:
+    """Only a paper the user could actually have seen can be acted on.
+
+    Without the visibility filter any pmid in the table can be saved or liked
+    by posting to the endpoint directly, including papers pulled from the feed
+    by an admin.
+    """
+    return get_object_or_404(
+        Paper, pmid=pmid, is_visible=True, summary_status=Paper.SummaryStatus.OK
+    )
 
 
 def _get_or_create_state(user, paper: Paper) -> UserPaperState:
@@ -74,7 +102,7 @@ def _get_or_create_state(user, paper: Paper) -> UserPaperState:
 @login_required
 @require_POST
 def toggle_save(request: HttpRequest, pmid: str) -> HttpResponse:
-    paper = get_object_or_404(Paper, pmid=pmid)
+    paper = _get_actionable_paper(pmid)
     state = _get_or_create_state(request.user, paper)
     state.saved_at = None if state.saved_at else timezone.now()
     state.save(update_fields=["saved_at", "updated_at"])
@@ -84,7 +112,7 @@ def toggle_save(request: HttpRequest, pmid: str) -> HttpResponse:
 @login_required
 @require_POST
 def toggle_like(request: HttpRequest, pmid: str) -> HttpResponse:
-    paper = get_object_or_404(Paper, pmid=pmid)
+    paper = _get_actionable_paper(pmid)
     state = _get_or_create_state(request.user, paper)
     state.liked_at = None if state.liked_at else timezone.now()
     state.save(update_fields=["liked_at", "updated_at"])
@@ -94,7 +122,7 @@ def toggle_like(request: HttpRequest, pmid: str) -> HttpResponse:
 @login_required
 @require_POST
 def dismiss(request: HttpRequest, pmid: str) -> HttpResponse:
-    paper = get_object_or_404(Paper, pmid=pmid)
+    paper = _get_actionable_paper(pmid)
     state = _get_or_create_state(request.user, paper)
     state.dismissed_at = timezone.now()
     state.save(update_fields=["dismissed_at", "updated_at"])

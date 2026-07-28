@@ -15,7 +15,10 @@ from django.urls import reverse
 
 from apps.accounts import services
 
-ALLOWED_PREFIXES = ("/onboarding/", "/accounts/", "/static/", "/admin/", "/healthz")
+# /p/ is on this list because it is the public share page: someone who signed
+# up from a shared link and hasn't finished onboarding should still be able to
+# read the paper that brought them here, not be bounced into the wizard.
+ALLOWED_PREFIXES = ("/onboarding/", "/accounts/", "/static/", "/admin/", "/healthz", "/p/")
 
 
 class OnboardingMiddleware:

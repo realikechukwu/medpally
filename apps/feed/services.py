@@ -8,9 +8,10 @@ and that's the whole page regardless of how many cards are on it.
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 
 from django.conf import settings
 from django.db.models import Exists, OuterRef, Q, QuerySet, Subquery
@@ -78,11 +79,20 @@ def encode_cursor(paper: Paper) -> str:
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
 
-def decode_cursor(raw: str) -> Cursor:
-    feed_date_str, is_priority_study, paper_id = json.loads(
-        base64.urlsafe_b64decode(raw.encode()).decode()
-    )
-    return Cursor(date.fromisoformat(feed_date_str), bool(is_priority_study), int(paper_id))
+def decode_cursor(raw: str) -> Cursor | None:
+    """Decode a cursor, or None if it isn't one.
+
+    Cursors arrive in a query string, so they arrive tampered with, truncated
+    by a mail client, or pasted half-way. None of that is a server error — the
+    caller falls back to the first page.
+    """
+    try:
+        feed_date_str, is_priority_study, paper_id = json.loads(
+            base64.urlsafe_b64decode(raw.encode()).decode()
+        )
+        return Cursor(date.fromisoformat(feed_date_str), bool(is_priority_study), int(paper_id))
+    except (ValueError, TypeError, binascii.Error):
+        return None
 
 
 def apply_cursor(qs: QuerySet[Paper], cursor: str | None) -> QuerySet[Paper]:
@@ -96,6 +106,8 @@ def apply_cursor(qs: QuerySet[Paper], cursor: str | None) -> QuerySet[Paper]:
     if not cursor:
         return qs
     c = decode_cursor(cursor)
+    if c is None:
+        return qs
     return qs.filter(
         Q(feed_date__lt=c.feed_date)
         | Q(feed_date=c.feed_date, is_priority_study__lt=c.is_priority_study)
@@ -127,6 +139,53 @@ def get_feed_page(
     papers = papers[:page_size]
     next_cursor = encode_cursor(papers[-1]) if has_next and papers else None
     return FeedPage(papers=papers, next_cursor=next_cursor)
+
+
+# ---------------------------------------------------------------- read later
+#
+# Read Later sorts by when you saved it, not by feed_date, so it needs its own
+# cursor. Same keyset reasoning as the feed: saves arrive while you're reading.
+
+
+@dataclass(slots=True)
+class SavedPage:
+    states: list[UserPaperState]
+    next_cursor: str | None
+
+
+def _encode_saved_cursor(state: UserPaperState) -> str:
+    payload = [state.saved_at.isoformat(), state.paper_id]
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+
+def _decode_saved_cursor(raw: str) -> tuple[datetime, int] | None:
+    try:
+        saved_at_str, paper_id = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
+        return datetime.fromisoformat(saved_at_str), int(paper_id)
+    except (ValueError, TypeError, binascii.Error):
+        return None
+
+
+def get_saved_page(
+    user: User, *, cursor: str | None = None, page_size: int | None = None
+) -> SavedPage:
+    page_size = page_size or settings.FEED_PAGE_SIZE
+    qs = (
+        UserPaperState.objects.filter(user=user, saved_at__isnull=False)
+        .select_related("paper", "paper__journal", "paper__summary")
+        .order_by("-saved_at", "-paper_id")
+    )
+
+    decoded = _decode_saved_cursor(cursor) if cursor else None
+    if decoded is not None:
+        saved_at, paper_id = decoded
+        qs = qs.filter(Q(saved_at__lt=saved_at) | Q(saved_at=saved_at, paper_id__lt=paper_id))
+
+    states = list(qs[: page_size + 1])
+    has_next = len(states) > page_size
+    states = states[:page_size]
+    next_cursor = _encode_saved_cursor(states[-1]) if has_next and states else None
+    return SavedPage(states=states, next_cursor=next_cursor)
 
 
 # ---------------------------------------------------------------- seen state
