@@ -434,11 +434,19 @@ input::placeholder { color: var(--text-muted); }
   opacity: 0; margin: 0; cursor: pointer;
 }
 .hamburger:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-.top-bar-brand {
+/* Brand and page title share the centre slot and crossfade; visibility (not
+   just opacity) keeps the hidden one out of the tab order. */
+.top-bar-brand, .top-bar-title {
   position: absolute; left: 50%; transform: translateX(-50%);
-  font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text);
+  max-width: calc(100% - 104px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: -0.02em; color: var(--text);
+  transition: opacity 0.18s ease, visibility 0.18s ease;
 }
+.top-bar-brand { font-size: 17px; font-weight: 800; }
 .top-bar-brand:hover { color: var(--text); }
+.top-bar-title { font-size: 16px; font-weight: 700; opacity: 0; visibility: hidden; }
+.top-bar.is-collapsed .top-bar-brand { opacity: 0; visibility: hidden; }
+.top-bar.is-collapsed .top-bar-title { opacity: 1; visibility: visible; }
 .top-bar-spacer { width: 40px; }
 
 .drawer {

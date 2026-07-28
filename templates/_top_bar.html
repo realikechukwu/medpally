@@ -5,6 +5,11 @@
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9h16M4 15h16"/></svg>
     </label>
     <a class="top-bar-brand" href="{% url 'feed:list' %}">{{ SITE_NAME }}</a>
+    {% comment %}
+      Filled from the page's <h1> by app.js, which fades it in once that heading
+      scrolls under the bar. Pages without an <h1> set bar_title in the view.
+    {% endcomment %}
+    <span class="top-bar-title" aria-hidden="true">{{ bar_title|default:"" }}</span>
     <span class="top-bar-spacer" aria-hidden="true"></span>
   </div>
 </header>

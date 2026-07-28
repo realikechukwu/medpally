@@ -7,6 +7,7 @@ which is the entire cost of getting three settings pages for free.
 
 from __future__ import annotations
 
+from allauth.account.models import EmailAddress
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
@@ -14,8 +15,6 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
-
-from allauth.account.models import EmailAddress
 
 from apps.catalog.models import Journal, SpecialtyJournal
 from apps.common.context_processors import initials
@@ -158,6 +157,7 @@ def account(request: HttpRequest) -> HttpResponse:
             "saved_count": saved_count,
             "email_verified": email_verified,
             "initials": initials(profile.full_name, request.user.email),
+            "bar_title": "Account",
             "active_tab": "account",
         },
     )
