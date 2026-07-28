@@ -1,31 +1,31 @@
-/* MedFeed design system — matures the app to the Apple-style mockup
-   (see the "MedFeed Apple-style redesign" claude.ai/design project). */
+/* MedPally design system — Threads-style white theme: edge-to-edge feed
+   with hairline dividers, sticky top bar, slide-in drawer. */
 
 :root {
   color-scheme: light;
 
-  --bg: #EDEBE5;
+  --bg: #FFFFFF;
   --primary: #123A4D;
   --primary-dark: #0D2A38;
   --accent: #1C6E8C;
   --accent-dark: #123A4D;
 
-  --card: #FAF9F6;
-  --border: #ECEAE5;
-  --border-strong: #DCD9D1;
+  --card: #FFFFFF;
+  --border: #EFEFEF;
+  --border-strong: #DBDBDB;
 
   --text: #1C1C1E;
   --text-secondary: #6E6E73;
   --text-muted: #9A9A9E;
-  --text-faint: #C9C7BE;
+  --text-faint: #C7C7CC;
 
   --rct: #2F7D5C;
   --danger: #C4402F;
   --danger-bg: #FBEAE7;
   --danger-soft: #E3B4AB;
 
-  --chip-bg: #F2F1EC;
-  --tag-bg: #EEECE4;
+  --chip-bg: #F2F2F4;
+  --tag-bg: #F2F2F4;
 
   --radius-card: 18px;
   --radius-btn: 14px;
@@ -54,7 +54,7 @@ h1, h2, h3 { color: var(--text); margin: 0 0 0.4em; }
 .app-main {
   max-width: var(--content-width);
   margin: 0 auto;
-  padding: 20px 20px 40px;
+  padding: 12px 20px 40px;
   min-height: 100vh;
 }
 
@@ -160,10 +160,22 @@ input::placeholder { color: var(--text-muted); }
 /* ---------------------------------------------------------------- cards (paper feed) */
 
 .card {
-  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-card);
-  padding: 18px; margin-bottom: 14px;
+  background: var(--card); border: none; border-bottom: 1px solid var(--border);
+  border-radius: 0; padding: 16px 20px; margin-bottom: 0;
 }
-.card.seen { opacity: 0.72; }
+.card.seen h3 a, .card.seen .summary { color: var(--text-muted); }
+.card.seen .card-journal { color: var(--text-secondary); }
+
+.app-main.feed-flush { padding-left: 0; padding-right: 0; }
+.feed-flush .page-header, .feed-flush .messages, .feed-flush .empty-state {
+  padding-left: 20px; padding-right: 20px;
+}
+#cards .card:first-child { border-top: 1px solid var(--border); }
+
+/* Above the content width the flush column would otherwise float unbounded. */
+@media (min-width: 600px) {
+  .app-main.feed-flush { border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+}
 .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .card-header .journal-cover { border-radius: 9px; flex-shrink: 0; }
 .card-journal { font-size: 13px; font-weight: 600; color: var(--text); }
@@ -211,7 +223,7 @@ input::placeholder { color: var(--text-muted); }
 .welcome-hero {
   min-height: calc(100vh - 40px); display: flex; flex-direction: column;
   background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: #fff; border-radius: var(--radius-card); padding: 56px 32px 40px; margin: -20px -4px 0;
+  color: #fff; border-radius: var(--radius-card); padding: 56px 32px 40px; margin: -12px -4px 0;
   box-sizing: border-box;
 }
 .welcome-hero .welcome-body {
@@ -253,6 +265,27 @@ input::placeholder { color: var(--text-muted); }
 }
 .auth-shell hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
 
+.auth-divider {
+  display: flex; align-items: center; gap: 12px; margin: 20px 0;
+  color: var(--text-muted); font-size: 13px;
+}
+.auth-divider::before, .auth-divider::after {
+  content: ""; flex: 1; height: 1px; background: var(--border);
+}
+.provider-list form { margin: 0; }
+/* .auth-shell button[type=submit] restyles submits as the dark primary CTA,
+   so the Google button needs the higher-specificity variants to stay white. */
+.btn-google,
+.auth-shell button[type=submit].btn-google {
+  display: flex; width: 100%; align-items: center; justify-content: center; gap: 10px;
+  background: #fff; border: 1px solid #dadce0; border-radius: var(--radius-btn);
+  padding: 13px; font-size: 15px; font-weight: 600; color: #3c4043;
+  cursor: pointer; font-family: inherit; margin-top: 0;
+}
+.btn-google:hover,
+.auth-shell button[type=submit].btn-google:hover { background: #f8f9fa; color: #3c4043; }
+.btn-google svg { flex-shrink: 0; }
+
 /* ---------------------------------------------------------------- specialty / journal / frequency */
 
 .journal-group { margin-bottom: 20px; }
@@ -271,7 +304,7 @@ input::placeholder { color: var(--text-muted); }
   position: absolute; inset: 0; width: 22px; height: 22px; margin: 0; opacity: 0; cursor: pointer;
 }
 .journal-checkbox .box {
-  width: 22px; height: 22px; border-radius: 7px; background: #E9E7E1;
+  width: 22px; height: 22px; border-radius: 7px; background: #EDEDEF;
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
 .journal-checkbox input:checked ~ .box { background: var(--primary); }
@@ -296,14 +329,39 @@ input::placeholder { color: var(--text-muted); }
 
 /* ---------------------------------------------------------------- account page */
 
-.account-header { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+.account-header {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 4px; padding: 14px 0 6px; margin-bottom: 20px;
+}
 .avatar {
   width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: #fff;
   font-size: 19px; font-weight: 700; display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.account-name { font-size: 16.5px; font-weight: 700; color: var(--text); }
+.avatar-lg { width: 72px; height: 72px; font-size: 26px; margin-bottom: 8px; }
+.avatar-sm { width: 40px; height: 40px; font-size: 15px; }
+.account-name { font-size: 18px; font-weight: 700; color: var(--text); }
 .account-email { font-size: 13px; color: var(--text-muted); }
+
+.stat-row {
+  display: flex; border: 1px solid var(--border); border-radius: 14px;
+  margin-bottom: 24px; overflow: hidden;
+}
+.stat { flex: 1; text-align: center; padding: 12px 4px; min-width: 0; }
+.stat + .stat { border-left: 1px solid var(--border); }
+.stat-value {
+  font-weight: 700; font-size: 16px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 6px;
+}
+.stat-label { font-size: 11.5px; color: var(--text-muted); }
+
+.settings-row-value.is-verified { color: var(--rct); font-weight: 600; }
+.settings-row.settings-row-danger {
+  width: 100%; background: none; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.settings-row.settings-row-danger:last-child { border-bottom: none; }
+.settings-row.settings-row-danger .settings-row-label { color: var(--danger); font-size: 14.5px; font-weight: 600; }
 
 .settings-group {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
@@ -354,6 +412,78 @@ input::placeholder { color: var(--text-muted); }
 .empty-state h2 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
 .empty-state p { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; max-width: 260px; margin: 0 auto; }
 
+/* ---------------------------------------------------------------- top bar + drawer */
+
+.top-bar {
+  position: sticky; top: 0; z-index: 20; background: #fff;
+  padding-top: env(safe-area-inset-top, 0);
+  box-shadow: 0 1px 0 var(--border), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.top-bar-inner {
+  position: relative; display: flex; align-items: center; justify-content: space-between;
+  max-width: var(--content-width); margin: 0 auto; height: 52px; padding: 0 12px;
+}
+.hamburger {
+  position: relative; display: inline-flex; width: 40px; height: 40px;
+  align-items: center; justify-content: center; border-radius: 50%;
+  cursor: pointer; color: var(--text);
+}
+.hamburger:hover { background: var(--chip-bg); }
+.hamburger input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; margin: 0; cursor: pointer;
+}
+.hamburger:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.top-bar-brand {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-size: 17px; font-weight: 800; letter-spacing: -0.02em; color: var(--text);
+}
+.top-bar-brand:hover { color: var(--text); }
+.top-bar-spacer { width: 40px; }
+
+.drawer {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
+  width: min(300px, 84vw); background: #fff;
+  display: flex; flex-direction: column;
+  padding: calc(20px + env(safe-area-inset-top, 0)) 12px calc(16px + env(safe-area-inset-bottom, 0));
+  transform: translateX(-105%); transition: transform 0.22s ease;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+}
+.drawer-overlay {
+  position: fixed; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.35);
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease; cursor: pointer;
+}
+body:has(.drawer-toggle:checked) .drawer { transform: translateX(0); }
+body:has(.drawer-toggle:checked) .drawer-overlay { opacity: 1; pointer-events: auto; }
+body:has(.drawer-toggle:checked) { overflow: hidden; }
+
+.drawer-brand { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; padding: 0 12px 14px; }
+.drawer-nav { flex: 1; }
+.drawer-link {
+  display: flex; align-items: center; gap: 14px; padding: 13px 12px;
+  border-radius: 12px; color: var(--text); font-size: 15.5px; font-weight: 600;
+}
+.drawer-link:hover { background: var(--chip-bg); color: var(--text); }
+.drawer-link.is-active { color: var(--primary); background: var(--chip-bg); }
+.drawer-footer {
+  border-top: 1px solid var(--border); padding: 14px 12px 0;
+  display: flex; align-items: center; gap: 12px;
+}
+.drawer-user { flex: 1; min-width: 0; }
+.drawer-user-name {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drawer-user-email {
+  font-size: 12px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.drawer-footer form { margin: 0; flex-shrink: 0; }
+.drawer-logout {
+  background: none; border: none; color: var(--danger); font-family: inherit;
+  font-size: 13.5px; font-weight: 600; cursor: pointer; padding: 8px;
+}
+
 /* ---------------------------------------------------------------- bottom nav */
 
 .bottom-nav {
@@ -378,6 +508,10 @@ input::placeholder { color: var(--text-muted); }
 .journal-cover { border-radius: 9px; }
 
 @media (max-width: 480px) {
-  .app-main { padding: 16px 16px 32px; }
-  .welcome-hero { margin: -16px -0px 0; border-radius: 0; min-height: calc(100vh - 32px); }
+  .app-main { padding: 12px 16px 32px; }
+  .app-main.feed-flush { padding-left: 0; padding-right: 0; }
+  .feed-flush .page-header, .feed-flush .messages, .feed-flush .empty-state {
+    padding-left: 16px; padding-right: 16px;
+  }
+  .welcome-hero { margin: -12px 0 0; border-radius: 0; min-height: calc(100vh - 32px); }
 }

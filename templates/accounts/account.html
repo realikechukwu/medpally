@@ -1,15 +1,26 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header">
-  <h1 class="page-title">Account</h1>
-</div>
-
 <div class="account-header">
-  <div class="avatar">{{ initials }}</div>
+  <div class="avatar avatar-lg">{{ initials }}</div>
   <div>
     <div class="account-name">{{ profile.full_name|default:request.user.email }}</div>
     <div class="account-email">{{ request.user.email }}</div>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat">
+    <div class="stat-value">{{ journal_count }}</div>
+    <div class="stat-label">Journals</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ saved_count }}</div>
+    <div class="stat-label">Saved</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">{{ profile.specialty.name|default:"Not set" }}</div>
+    <div class="stat-label">Specialty</div>
   </div>
 </div>
 
@@ -19,29 +30,52 @@
     <span class="settings-row-label">Specialty</span>
     <span class="settings-row-value">
       {{ profile.specialty.name|default:"Not set" }}
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9C7BE" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
     </span>
   </a>
   <a class="settings-row" href="{% url 'accounts:settings_journals' %}">
     <span class="settings-row-label">Journals</span>
     <span class="settings-row-value">
       {{ journal_count }} selected
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9C7BE" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
     </span>
   </a>
   <a class="settings-row" href="{% url 'accounts:settings_notifications' %}">
     <span class="settings-row-label">Update frequency</span>
     <span class="settings-row-value">
       {{ profile.get_update_frequency_display }}
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9C7BE" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
     </span>
   </a>
+  {% if email_verified %}
+  <div class="settings-row">
+    <span class="settings-row-label">Email</span>
+    <span class="settings-row-value is-verified">
+      Verified
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+    </span>
+  </div>
+  {% else %}
+  <a class="settings-row" href="{% url 'account_email' %}">
+    <span class="settings-row-label">Email</span>
+    <span class="settings-row-value">
+      Not verified
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
+    </span>
+  </a>
+  {% endif %}
 </div>
 
-<form method="post" action="{% url 'account_logout' %}" style="margin:0 0 12px">
-  {% csrf_token %}
-  <button type="submit" class="btn btn-soft btn-block">Sign out</button>
-</form>
+<div class="journal-group-title">Session</div>
+<div class="settings-group">
+  <form method="post" action="{% url 'account_logout' %}" style="margin:0">
+    {% csrf_token %}
+    <button type="submit" class="settings-row settings-row-danger">
+      <span class="settings-row-label">Sign out</span>
+    </button>
+  </form>
+</div>
+
 <div style="text-align:center">
   <a href="{% url 'accounts:delete_account_confirm' %}" class="btn-text-danger" style="display:inline-block">Delete account</a>
 </div>

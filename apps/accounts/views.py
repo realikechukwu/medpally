@@ -15,7 +15,10 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from allauth.account.models import EmailAddress
+
 from apps.catalog.models import Journal, SpecialtyJournal
+from apps.common.context_processors import initials
 
 from . import services
 from .forms import FrequencyForm, JournalsForm, ProfileForm
@@ -138,25 +141,23 @@ def frequency_step(request: HttpRequest, is_onboarding: bool = True) -> HttpResp
     )
 
 
-def _initials(full_name: str, email: str) -> str:
-    basis = full_name.strip() or email
-    words = [w for w in basis.split() if w]
-    if len(words) >= 2:
-        return (words[0][0] + words[1][0]).upper()
-    return basis[:2].upper()
-
-
 @login_required
 def account(request: HttpRequest) -> HttpResponse:
     profile = request.user.profile
     journal_count = request.user.journal_subscriptions.filter(is_active=True).count()
+    saved_count = request.user.paper_states.filter(saved_at__isnull=False).count()
+    email_verified = EmailAddress.objects.filter(
+        user=request.user, email=request.user.email, verified=True
+    ).exists()
     return render(
         request,
         "accounts/account.html",
         {
             "profile": profile,
             "journal_count": journal_count,
-            "initials": _initials(profile.full_name, request.user.email),
+            "saved_count": saved_count,
+            "email_verified": email_verified,
+            "initials": initials(profile.full_name, request.user.email),
             "active_tab": "account",
         },
     )
