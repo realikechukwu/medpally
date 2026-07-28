@@ -67,7 +67,7 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     client = PubMedClient(
         email=email,
         api_key=os.getenv("NCBI_API_KEY", ""),
-        tool=os.getenv("PUBMED_TOOL_NAME", "medfeed"),
+        tool=os.getenv("PUBMED_TOOL_NAME", "medpally"),
     )
 
     date_to = date.fromisoformat(args.to) if args.to else datetime.now(UTC).date()

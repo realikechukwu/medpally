@@ -340,6 +340,50 @@ def test_dismiss_removes_paper_from_feed(client, user, circulation):
     assert b"Paper 1" not in resp.content
 
 
+# ---------------------------------------------------------------- search
+
+
+def test_search_finds_a_paper_by_title(client, user, circulation):
+    subscribe(user, circulation)
+    make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), title="Colchicine after MI")
+    make_paper("2", journal=circulation, feed_date=date(2026, 7, 19), title="Unrelated study")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:search"), {"q": "colchicine"})
+    assert resp.status_code == 200
+    assert b"Colchicine after MI" in resp.content
+    assert b"Unrelated study" not in resp.content
+
+
+def test_search_finds_a_paper_by_pmid(client, user, circulation):
+    subscribe(user, circulation)
+    make_paper("42508842", journal=circulation, feed_date=date(2026, 7, 20), title="Findable by ID")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:search"), {"q": "42508842"})
+    assert b"Findable by ID" in resp.content
+
+
+def test_search_is_scoped_to_the_readers_subscriptions(client, user, circulation, nejm, cardiology):
+    """A paper in a journal the reader never subscribed to must not leak into search."""
+    subscribe(user, circulation)
+    make_paper("1", journal=nejm, feed_date=date(2026, 7, 20), title="Unsubscribed journal paper")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:search"), {"q": "Unsubscribed"})
+    assert b"Unsubscribed journal paper" not in resp.content
+
+
+def test_search_with_no_query_shows_no_results(client, user, circulation):
+    subscribe(user, circulation)
+    make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), title="Should not appear")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:search"))
+    assert resp.status_code == 200
+    assert b"Should not appear" not in resp.content
+
+
 # ---------------------------------------------------------------- public paper detail
 
 

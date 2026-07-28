@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title" style="margin-bottom:14px">Search</h1>
+  <form method="get" class="search-bar">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <input type="search" name="q" value="{{ query }}" placeholder="Title, journal, or PMID" autofocus>
+  </form>
+</div>
+
+{% if not query %}
+  <div class="empty-state">
+    <div class="empty-state-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    </div>
+    <h2>Search your journals</h2>
+    <p>Find anything in your feed by title, journal, or PMID.</p>
+  </div>
+{% else %}
+  <div id="cards">
+    {% for card in cards %}
+      {% include "feed/_card.html" with paper=card.paper state=card.state %}
+    {% empty %}
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </div>
+        <h2>No matches</h2>
+        <p>Nothing in your feed matches &ldquo;{{ query }}&rdquo;.</p>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

@@ -40,7 +40,7 @@ class PubMedClient:
         *,
         email: str,
         api_key: str = "",
-        tool: str = "medfeed",
+        tool: str = "medpally",
         http: HttpClient | None = None,
     ) -> None:
         self.email = email

@@ -7,7 +7,7 @@
   {% if show_new_divider %}<div class="new-divider">New since your last visit</div>{% endif %}
 
   <div class="card-header">
-    {% journal_cover paper.journal size=40 %}
+    {% journal_cover paper.journal size=34 %}
     <div>
       <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
       <div class="card-date">{{ paper.feed_date }}</div>
@@ -19,14 +19,7 @@
 
   {% with summary=paper.summary %}
   {% if summary %}
-  <dl class="summary">
-    <dt>{{ summary.study_type }}</dt>
-    <dd>{{ summary.context }}</dd>
-    <dt>Finding</dt>
-    <dd>{{ summary.finding }}</dd>
-    <dt>So what</dt>
-    <dd>{{ summary.so_what }}</dd>
-  </dl>
+  <p class="summary">{{ summary.finding }}</p>
   <p class="tags">{% for tag in summary.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</p>
   {% endif %}
   {% endwith %}
@@ -34,10 +27,13 @@
   <div class="card-actions">
     {% include "feed/_save_button.html" %}
     {% include "feed/_like_button.html" %}
+    <span class="spacer"></span>
+    <a class="link-muted" href="{{ paper.url }}" target="_blank" rel="noopener">PubMed</a>
     <form hx-post="{% url 'feed:dismiss' paper.pmid %}" hx-target="closest article" hx-swap="outerHTML" style="display:inline">
       {% csrf_token %}
-      <button type="submit">Dismiss</button>
+      <button type="submit" class="icon-btn" aria-label="Dismiss">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
     </form>
-    <a href="{{ paper.url }}" target="_blank" rel="noopener">PubMed</a>
   </div>
 </article>

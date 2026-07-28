@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
@@ -53,6 +54,7 @@ def feed_list(request: HttpRequest) -> HttpResponse:
         "next_cursor": page.next_cursor,
         "unseen_only": unseen_only,
         "next_url_name": "feed:list",
+        "active_tab": "feed",
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/list.html"
     return render(request, template, context)
@@ -62,9 +64,40 @@ def feed_list(request: HttpRequest) -> HttpResponse:
 def read_later(request: HttpRequest) -> HttpResponse:
     page = services.get_saved_page(request.user, cursor=request.GET.get("cursor") or None)
     cards = [{"paper": s.paper, "state": s, "is_new": False} for s in page.states]
-    context = {"cards": cards, "next_cursor": page.next_cursor, "next_url_name": "feed:read_later"}
+    context = {
+        "cards": cards,
+        "next_cursor": page.next_cursor,
+        "next_url_name": "feed:read_later",
+        "active_tab": "saved",
+    }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/read_later.html"
     return render(request, template, context)
+
+
+@login_required
+def search(request: HttpRequest) -> HttpResponse:
+    """Search across the papers this reader is entitled to see.
+
+    Scoped to feed_queryset (subscriptions + specialty + visibility) rather
+    than all papers, matching the product's "search your journals" framing —
+    not a global PubMed search.
+    """
+    query = (request.GET.get("q") or "").strip()
+    cards: list[dict] = []
+    if query:
+        matches = (
+            services.feed_queryset(request.user)
+            .filter(
+                Q(title__icontains=query)
+                | Q(pmid=query)
+                | Q(journal__display_name__icontains=query)
+            )
+            .order_by("-feed_date", "-id")[:40]
+        )
+        cards = [{"paper": p, "state": None} for p in matches]
+    return render(
+        request, "feed/search.html", {"query": query, "cards": cards, "active_tab": "search"}
+    )
 
 
 def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
@@ -75,11 +108,12 @@ def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
         is_visible=True,
         summary_status=Paper.SummaryStatus.OK,
     )
+    state = None
     if request.user.is_authenticated:
-        UserPaperState.objects.update_or_create(
+        state, _ = UserPaperState.objects.update_or_create(
             user=request.user, paper=paper, defaults={"opened_at": timezone.now()}
         )
-    return render(request, "feed/paper_detail.html", {"paper": paper})
+    return render(request, "feed/paper_detail.html", {"paper": paper, "state": state})
 
 
 def _get_actionable_paper(pmid: str) -> Paper:

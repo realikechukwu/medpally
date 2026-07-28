@@ -39,7 +39,7 @@ def fetch_body(*pmids: str) -> str:
 def client():
     # A high rate keeps the token bucket from actually sleeping in tests.
     http = HttpClient(rate_per_second=1000.0, user_agent="test/1.0", max_attempts=3)
-    return PubMedClient(email="test@example.com", tool="medfeed-test", http=http)
+    return PubMedClient(email="test@example.com", tool="medpally-test", http=http)
 
 
 # ---------------------------------------------------------------- token bucket

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block before_content %}
+<a href="{% url 'accounts:account' %}" class="btn-text" style="padding-left:0">Cancel</a>
+{% endblock %}
+
+{% block content %}
+<div class="danger-panel">
+  <div class="danger-icon-circle">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#C4402F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.7 17a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+  </div>
+  <h1>Delete your account?</h1>
+  <p>This permanently erases your profile, saved papers, likes, and journal subscriptions. This can't be undone.</p>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="field">
+    <label class="field-label" for="id_confirm_text">Type DELETE to confirm</label>
+    <input type="text" id="id_confirm_text" name="confirm_text" placeholder="DELETE" class="confirm-input" autocomplete="off">
+  </div>
+  <button type="submit" class="btn btn-danger btn-block">Delete account</button>
+</form>
+<div style="text-align:center">
+  <a href="{% url 'accounts:account' %}" class="btn-text">Keep my account</a>
+</div>
+{% endblock %}

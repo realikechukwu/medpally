@@ -1,4 +1,4 @@
-# MedFeed
+# MedPally
 
 A per-user feed of summarised medical literature. Clinicians create an account,
 pick their journals, and get a scrollable feed of papers with a short editorial

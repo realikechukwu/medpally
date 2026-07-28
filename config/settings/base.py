@@ -19,7 +19,7 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
-SITE_NAME = env("SITE_NAME", default="MedFeed")
+SITE_NAME = env("SITE_NAME", default="MedPally")
 SITE_BASE_URL = env("SITE_BASE_URL", default="http://localhost:8000")
 SITE_ID = 1
 
@@ -163,13 +163,13 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = env("BREVO_SMTP_USER", default="")
 EMAIL_HOST_PASSWORD = env("BREVO_SMTP_KEY", default="")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="MedFeed <noreply@medfeed.app>")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="MedPally <noreply@medpally.com>")
 
 # ---------------------------------------------------------------- engine
 
 PUBMED_EMAIL = env("NCBI_EMAIL", default="")
 PUBMED_API_KEY = env("NCBI_API_KEY", default="")
-PUBMED_TOOL_NAME = env("PUBMED_TOOL_NAME", default="medfeed")
+PUBMED_TOOL_NAME = env("PUBMED_TOOL_NAME", default="medpally")
 
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 OPENAI_MODEL = env("OPENAI_MODEL", default="gpt-4o-mini")

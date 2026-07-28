@@ -1,33 +1,46 @@
 {% extends "base.html" %}
 
+{% block before_content %}
+{% if not is_onboarding %}
+<a href="{% url 'accounts:account' %}" class="back-btn" aria-label="Back to account">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</a>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 {% if is_onboarding %}
   <p class="wizard-step">Step {{ step }} of 3</p>
-  <h1>Tell us about yourself</h1>
+  <h1 class="page-title" style="margin-bottom:24px">Tell us about you</h1>
 {% else %}
-  <h1>Profile</h1>
+  <h1 class="page-title" style="margin-bottom:24px">Profile</h1>
 {% endif %}
 
 <form method="post">
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <p>
+  <div class="field">
     {{ form.full_name.label_tag }}
     {{ form.full_name }}
     {{ form.full_name.errors }}
-  </p>
-  <p>
+  </div>
+  <div class="field">
     {{ form.workplace.label_tag }}
     {{ form.workplace }}
     {{ form.workplace.errors }}
-  </p>
-  <fieldset>
-    <legend>{{ form.specialty.label }}</legend>
+  </div>
+  <div class="field">
+    <label class="field-label">{{ form.specialty.label }}</label>
     {{ form.specialty.errors }}
-    {% for radio in form.specialty %}
-      <label>{{ radio.tag }} {{ radio.choice_label }}</label>
-    {% endfor %}
-  </fieldset>
-  <input type="submit" value="{% if is_onboarding %}Continue{% else %}Save{% endif %}">
+    <div class="chip-row">
+      {% for radio in form.specialty %}
+        <label class="chip-wrap">
+          {{ radio.tag }}
+          <span class="chip">{{ radio.choice_label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px">{% if is_onboarding %}Continue{% else %}Save{% endif %}</button>
 </form>
 {% endblock %}

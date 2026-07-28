@@ -41,4 +41,6 @@ urlpatterns = [
         {"is_onboarding": False},
         name="settings_notifications",
     ),
+    path("account/", views.account, name="account"),
+    path("account/delete/", views.delete_account_confirm, name="delete_account_confirm"),
 ]

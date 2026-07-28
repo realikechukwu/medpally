@@ -3,31 +3,46 @@
 
 {% block title %}{{ paper.title }} — {{ SITE_NAME }}{% endblock %}
 
+{% block before_content %}
+{% if request.user.is_authenticated %}
+<a href="{% url 'feed:list' %}" class="back-btn" aria-label="Back to feed">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</a>
+{% endif %}
+{% endblock %}
+
 {% block content %}
-<article class="card">
-  <div class="card-header">
-    {% journal_cover paper.journal size=48 %}
-    <div>
-      <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
-      <div class="card-date">{{ paper.feed_date }}</div>
-    </div>
-    {% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}
+<div class="card-header" style="margin-bottom:14px">
+  {% journal_cover paper.journal size=40 %}
+  <div>
+    <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
+    <div class="card-date">{{ paper.feed_date }}</div>
   </div>
+  {% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}
+</div>
 
-  <h1>{{ paper.title }}</h1>
+<h1 style="font-size:22px;line-height:1.32;margin-bottom:20px">{{ paper.title }}</h1>
 
-  {% with summary=paper.summary %}
-  <dl class="summary">
-    <dt>{{ summary.study_type }}</dt>
-    <dd>{{ summary.context }}</dd>
-    <dt>Finding</dt>
-    <dd>{{ summary.finding }}</dd>
-    <dt>So what</dt>
-    <dd>{{ summary.so_what }}</dd>
-  </dl>
-  <p class="tags">{% for tag in summary.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</p>
-  {% endwith %}
+{% with summary=paper.summary %}
+<dl class="summary">
+  <dt>Study type</dt>
+  <dd>{{ summary.study_type }}</dd>
+  <dt>Context</dt>
+  <dd>{{ summary.context }}</dd>
+  <dt>Finding</dt>
+  <dd>{{ summary.finding }}</dd>
+  <dt>So what</dt>
+  <dd>{{ summary.so_what }}</dd>
+</dl>
+<p class="tags">{% for tag in summary.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</p>
+{% endwith %}
 
-  <p><a href="{{ paper.url }}" target="_blank" rel="noopener">Read on PubMed →</a></p>
-</article>
+{% if request.user.is_authenticated %}
+<div class="card-actions" style="margin-bottom:20px">
+  {% include "feed/_save_button.html" %}
+  {% include "feed/_like_button.html" %}
+</div>
+{% endif %}
+
+<a class="btn btn-outline btn-block" href="{{ paper.url }}" target="_blank" rel="noopener">View on PubMed</a>
 {% endblock %}

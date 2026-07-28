@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="hero">
-  <h1>{{ SITE_NAME }}</h1>
-  <p class="lede">The week's research from the journals you actually read, summarised into a few lines you can scan on the ward.</p>
-
-  <ul>
-    <li>Pick your specialty and we preselect the journals that matter; add or drop any of them.</li>
-    <li>Every paper gets a short editorial note — what was asked, what was found, and whether it changes anything.</li>
-    <li>New papers arrive nightly. Save the ones worth a second look for later.</li>
-  </ul>
-
-  <div class="cta">
-    <a class="primary" href="{% url 'account_signup' %}">Create an account</a>
-    <a href="{% url 'account_login' %}">Sign in</a>
+<div class="welcome-hero">
+  <div class="welcome-body">
+    <div class="welcome-mark">M</div>
+    <h1>{{ SITE_NAME }}</h1>
+    <p class="lede">The week's research from the journals you actually read, summarised into a few lines you can scan on the ward.</p>
+    <ul>
+      <li>Pick your specialty and we preselect the journals that matter; add or drop any of them.</li>
+      <li>Every paper gets a short editorial note — what was asked, what was found, and whether it changes anything.</li>
+      <li>New papers arrive nightly. Save the ones worth a second look for later.</li>
+    </ul>
   </div>
-
-  <p class="fineprint">
+  <div class="welcome-actions">
+    <a class="btn btn-white btn-block" href="{% url 'account_signup' %}">Create an account</a>
+    <a class="btn btn-outline-light btn-block" href="{% url 'account_login' %}">Log in</a>
+  </div>
+  <p class="welcome-fineprint">
     Free while in beta. If you already get the weekly cardiology newsletter by email,
     that keeps arriving unchanged — signing up here doesn't replace it yet.
   </p>

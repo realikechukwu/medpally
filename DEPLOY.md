@@ -1,4 +1,4 @@
-# Deploying MedFeed
+# Deploying MedPally
 
 Everything that can be built and verified without credentials already is. What
 follows is the part that needs accounts and secrets.
@@ -34,7 +34,7 @@ it warm, so this only bites if both schedulers are off.
 ## 2. GitHub — the repository and the primary nightly job
 
 ```bash
-gh repo create medfeed --private --source=. --remote=origin --push
+gh repo create medpally --private --source=. --remote=origin --push
 ```
 
 Then set repository secrets (Settings → Secrets and variables → Actions):
@@ -73,7 +73,7 @@ Paste the same values as above, plus:
 | `SITE_BASE_URL` | `https://<service>.onrender.com` — used in share links |
 | `GOOGLE_OAUTH_CLIENT_ID` / `_SECRET` | step 4 |
 | `BREVO_SMTP_USER` / `BREVO_SMTP_KEY` | step 5 |
-| `DEFAULT_FROM_EMAIL` | e.g. `MedFeed <noreply@yourdomain>` |
+| `DEFAULT_FROM_EMAIL` | e.g. `MedPally <noreply@medpally.com>` |
 
 `DJANGO_ALLOWED_HOSTS` is **not** in the list: production settings pick up
 Render's `RENDER_EXTERNAL_HOSTNAME` automatically, so the first deploy works
@@ -88,7 +88,7 @@ Notes on the shape of this blueprint:
   replicas will race the same migration.
 - The free web service sleeps after ~15 min idle and takes ~1 min to wake. The
   first visitor after a quiet night waits.
-- The `medfeed-nightly` cron is `plan: starter` (~$1/mo) because **Render does
+- The `medpally-nightly` cron is `plan: starter` (~$1/mo) because **Render does
   not run cron jobs on free instances.** If you would rather not pay it yet,
   delete that service from `render.yaml` — GitHub Actions is the primary
   scheduler and the app is fully functional without the second one. You lose

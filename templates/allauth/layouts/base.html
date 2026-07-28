@@ -2,10 +2,20 @@
 {# from this one template, so pointing it at our base.html makes them all     #}
 {# legible in one place.                                                      #}
 {#                                                                            #}
-{# This is not the styled-auth-pages work that was scoped out: allauth's      #}
-{# stock layout ships no CSS at all, which renders as near-black text on our  #}
-{# dark background and is unreadable. The pages stay plain, and allauth's own #}
-{# markup is untouched.                                                       #}
+{# content_class/before_content (not content itself) because login.html and  #}
+{# friends override {% block content %} directly without calling             #}
+{# block.super — anything put inside our own content block here would never  #}
+{# render. app.css's `.auth-shell` rules skin allauth's unclassed stock       #}
+{# markup (plain <input>/<button>/<p> — allauth ships no CSS at all) without  #}
+{# overriding allauth's own element templates.                               #}
 {% extends "base.html" %}
 
 {% block title %}{% block head_title %}{% endblock head_title %}{% endblock title %}
+
+{% block content_class %} auth-shell{% endblock %}
+
+{% block before_content %}
+<a href="{% url 'landing' %}" class="back-btn" aria-label="Back to {{ SITE_NAME }}">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</a>
+{% endblock %}

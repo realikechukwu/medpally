@@ -14,7 +14,7 @@
 
 services:
   - type: web
-    name: medfeed
+    name: medpally
     runtime: python
     plan: free
     region: frankfurt
@@ -75,7 +75,7 @@ services:
   # overlap, the upsert is idempotent, and the 3-day lookback means a night
   # missed at 02:00 is picked up here rather than lost.
   - type: cron
-    name: medfeed-nightly
+    name: medpally-nightly
     runtime: python
     plan: starter
     region: frankfurt

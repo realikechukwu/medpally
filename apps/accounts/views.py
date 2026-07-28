@@ -8,6 +8,7 @@ which is the entire cost of getting three settings pages for free.
 from __future__ import annotations
 
 from django.contrib import messages
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
@@ -135,3 +136,44 @@ def frequency_step(request: HttpRequest, is_onboarding: bool = True) -> HttpResp
         "accounts/frequency_form.html",
         {"form": form, "is_onboarding": is_onboarding, "step": 3},
     )
+
+
+def _initials(full_name: str, email: str) -> str:
+    basis = full_name.strip() or email
+    words = [w for w in basis.split() if w]
+    if len(words) >= 2:
+        return (words[0][0] + words[1][0]).upper()
+    return basis[:2].upper()
+
+
+@login_required
+def account(request: HttpRequest) -> HttpResponse:
+    profile = request.user.profile
+    journal_count = request.user.journal_subscriptions.filter(is_active=True).count()
+    return render(
+        request,
+        "accounts/account.html",
+        {
+            "profile": profile,
+            "journal_count": journal_count,
+            "initials": _initials(profile.full_name, request.user.email),
+            "active_tab": "account",
+        },
+    )
+
+
+@login_required
+def delete_account_confirm(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        confirm_text = (request.POST.get("confirm_text") or "").strip().upper()
+        if confirm_text != "DELETE":
+            messages.error(request, 'Type "DELETE" to confirm.')
+            return render(request, "accounts/delete_account_confirm.html", {})
+
+        user = request.user
+        logout(request)
+        user.delete()
+        messages.success(request, "Your account has been deleted.")
+        return redirect("landing")
+
+    return render(request, "accounts/delete_account_confirm.html", {})

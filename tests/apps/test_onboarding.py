@@ -256,3 +256,71 @@ def test_settings_pages_reuse_the_same_forms_without_touching_onboarding_state(
     user.profile.refresh_from_db()
     assert user.profile.full_name == "New Name"
     assert user.profile.onboarding_completed_at is not None
+
+
+# ---------------------------------------------------------------- account page
+
+
+def _onboard(user, cardiology, circulation):
+    user.profile.specialty = cardiology
+    user.profile.full_name = "Dr. Jane Okafor"
+    user.profile.onboarding_completed_at = timezone.now()
+    user.profile.save()
+    UserJournalSubscription.objects.create(user=user, journal=circulation)
+
+
+def test_account_page_shows_profile_summary(client, user, cardiology, circulation):
+    _onboard(user, cardiology, circulation)
+    client.force_login(user)
+
+    response = client.get(reverse("accounts:account"))
+    assert response.status_code == 200
+    assert b"Dr. Jane Okafor" in response.content
+    assert b"Cardiology" in response.content
+    assert b"1 selected" in response.content
+
+
+def test_account_page_initials_fall_back_to_email_when_no_name(
+    client, user, cardiology, circulation
+):
+    _onboard(user, cardiology, circulation)
+    user.profile.full_name = ""
+    user.profile.save()
+    client.force_login(user)
+
+    response = client.get(reverse("accounts:account"))
+    assert response.status_code == 200
+
+
+# ---------------------------------------------------------------- delete account
+
+
+def test_delete_account_requires_typed_confirmation(client, user, cardiology, circulation):
+    _onboard(user, cardiology, circulation)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("accounts:delete_account_confirm"), {"confirm_text": "delete pls"}
+    )
+    assert response.status_code == 200
+    assert User.objects.filter(pk=user.pk).exists()
+
+
+def test_delete_account_deletes_user_and_everything_cascading(
+    client, user, cardiology, circulation
+):
+    _onboard(user, cardiology, circulation)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("accounts:delete_account_confirm"), {"confirm_text": "delete"}, follow=True
+    )
+    assert response.status_code == 200
+    assert not User.objects.filter(pk=user.pk).exists()
+    assert not UserJournalSubscription.objects.filter(user_id=user.pk).exists()
+    assert not response.wsgi_request.user.is_authenticated
+
+
+def test_delete_account_requires_login(client):
+    response = client.post(reverse("accounts:delete_account_confirm"), {"confirm_text": "DELETE"})
+    assert response.status_code == 302

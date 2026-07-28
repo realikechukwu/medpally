@@ -1,24 +1,46 @@
 {% extends "base.html" %}
 
+{% block before_content %}
+{% if is_onboarding %}
+<a href="{% url 'accounts:onboarding_journals' %}" class="back-btn" aria-label="Back">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</a>
+{% else %}
+<a href="{% url 'accounts:account' %}" class="back-btn" aria-label="Back to account">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+</a>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 {% if is_onboarding %}
   <p class="wizard-step">Step {{ step }} of 3</p>
-  <h1>How often would you like updates?</h1>
-  <p>Emails are coming soon — for now the feed itself updates every night regardless of what you pick here.</p>
+  <h1 class="page-title" style="margin-bottom:8px">How often should we update your feed?</h1>
+  <p class="page-subtitle" style="margin-bottom:20px">Emails are coming soon — for now the feed itself updates every night regardless of what you pick here.</p>
 {% else %}
-  <h1>Notifications</h1>
+  <h1 class="page-title" style="margin-bottom:16px">Notifications</h1>
 {% endif %}
 
 <form method="post">
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <fieldset>
-    <legend>{{ form.update_frequency.label }}</legend>
-    {{ form.update_frequency.errors }}
-    {% for radio in form.update_frequency %}
-      <label>{{ radio.tag }} {{ radio.choice_label }}</label>
-    {% endfor %}
-  </fieldset>
-  <input type="submit" value="{% if is_onboarding %}Finish{% else %}Save{% endif %}">
+  {{ form.update_frequency.errors }}
+
+  {% for radio in form.update_frequency %}
+    <label class="option-row{% if radio.data.selected %} is-selected{% endif %}">
+      <span>
+        <span class="option-label">{{ radio.choice_label }}</span>
+        <span class="option-desc">
+          {% if radio.data.value == "daily" %}A fresh set of papers every morning.
+          {% elif radio.data.value == "every_3_days" %}A lighter, less frequent digest.
+          {% else %}One roundup, once a week.{% endif %}
+        </span>
+      </span>
+      {{ radio.tag }}
+      <span class="option-dot"></span>
+    </label>
+  {% endfor %}
+
+  <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px">{% if is_onboarding %}Finish setup{% else %}Save{% endif %}</button>
 </form>
 {% endblock %}

@@ -1,4 +1,9 @@
+{% with is_saved=state.saved_at|default_if_none:False %}
 <form hx-post="{% url 'feed:toggle_save' paper.pmid %}" hx-target="this" hx-swap="outerHTML" style="display:inline">
   {% csrf_token %}
-  <button type="submit">{% if state and state.saved_at %}Saved ✓{% else %}Save{% endif %}</button>
+  <button type="submit" class="icon-btn{% if is_saved %} is-active{% endif %}">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="{% if is_saved %}#123A4D{% else %}none{% endif %}" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+    <span>{% if is_saved %}Saved{% else %}Save{% endif %}</span>
+  </button>
 </form>
+{% endwith %}

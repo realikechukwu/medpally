@@ -1,5 +1,5 @@
 [project]
-name = "medfeed"
+name = "medpally"
 version = "0.1.0"
 description = "Per-user feed of summarised medical literature"
 requires-python = ">=3.13,<3.14"

@@ -4,69 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
-  <style>
-    :root { color-scheme: light dark; }
-    body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 0 auto; padding: 1rem; }
-    nav { display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center; }
-    nav a { text-decoration: none; }
-    nav .spacer { flex: 1; }
-    .wizard-step { color: gray; font-size: 0.9rem; }
-    form p { margin: 0.75rem 0; }
-    fieldset { border: 1px solid #8884; border-radius: 6px; padding: 0.75rem 1rem; margin: 0.75rem 0; }
-    .journal-group { margin-bottom: 1rem; }
-    .journal-group label { display: block; padding: 0.15rem 0; }
-    .errorlist { color: #b91c1c; padding-left: 1rem; }
-    .messages { list-style: none; padding: 0; }
-    .messages li { padding: 0.5rem; border-radius: 4px; background: #dcfce7; margin-bottom: 0.5rem; }
-    button, input[type=submit] { padding: 0.5rem 1rem; cursor: pointer; }
-
-    .card { border: 1px solid #8884; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-    .card.seen { opacity: 0.7; }
-    .card-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-    .card-journal { font-weight: 600; font-size: 0.9rem; }
-    .card-date { color: gray; font-size: 0.8rem; }
-    .badge { margin-left: auto; background: #b91c1c; color: #fff; font-size: 0.75rem;
-             padding: 0.15rem 0.5rem; border-radius: 4px; }
-    .new-divider { color: #2563eb; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.5rem; }
-    .summary dt { font-weight: 600; margin-top: 0.5rem; }
-    .summary dd { margin: 0 0 0.25rem 0; }
-    .tag { display: inline-block; background: #8882; border-radius: 4px; padding: 0.1rem 0.5rem;
-           font-size: 0.8rem; margin: 0.15rem 0.25rem 0.15rem 0; }
-    .card-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.75rem; }
-    .card-actions form { margin: 0; }
-
-    .hero { padding: 2rem 0 1rem; }
-    .hero h1 { font-size: 2rem; margin-bottom: 0.5rem; }
-    .hero .lede { font-size: 1.1rem; color: #8889; }
-    .hero ul { padding-left: 1.1rem; }
-    .cta { display: flex; gap: 0.75rem; margin: 1.5rem 0; flex-wrap: wrap; }
-    .cta a { padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none;
-             border: 1px solid #8886; }
-    .cta a.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-    .fineprint { color: gray; font-size: 0.85rem; }
-  </style>
 </head>
 <body>
-  {% if user.is_authenticated %}
-  <nav>
-    <a href="{% url 'feed:list' %}">Feed</a>
-    <a href="{% url 'feed:read_later' %}">Read Later</a>
-    <a href="{% url 'accounts:settings_profile' %}">Settings</a>
-    <span class="spacer"></span>
-    <form method="post" action="{% url 'account_logout' %}" style="margin:0">
-      {% csrf_token %}
-      <button type="submit">Log out</button>
-    </form>
+  <main class="app-main{% if active_tab %} has-bottom-nav{% endif %}{% block content_class %}{% endblock %}">
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    {% block before_content %}{% endblock %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if active_tab %}
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="{% url 'feed:list' %}" class="{% if active_tab == 'feed' %}is-active{% endif %}">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>
+        <span>Feed</span>
+      </a>
+      <a href="{% url 'feed:read_later' %}" class="{% if active_tab == 'saved' %}is-active{% endif %}">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+        <span>Saved</span>
+      </a>
+      <a href="{% url 'feed:search' %}" class="{% if active_tab == 'search' %}is-active{% endif %}">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <span>Search</span>
+      </a>
+      <a href="{% url 'accounts:account' %}" class="{% if active_tab == 'account' %}is-active{% endif %}">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span>Account</span>
+      </a>
+    </div>
   </nav>
   {% endif %}
-
-  {% if messages %}
-  <ul class="messages">
-    {% for message in messages %}<li>{{ message }}</li>{% endfor %}
-  </ul>
-  {% endif %}
-
-  {% block content %}{% endblock %}
 </body>
 </html>
