@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<p>{{ count }} paper{{ count|pluralize }} carry the unresolved journal name <strong>{{ raw_name }}</strong>.</p>
+<p>Pick the Journal it should map to. This is recorded as an alias, so every paper with this raw
+name — past and future — resolves the same way from now on.</p>
+
+<form method="post">
+  {% csrf_token %}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="map_unresolved_journal">
+  {{ form.as_p }}
+  <input type="submit" name="apply" value="Map journal" class="default">
+</form>
+{% endblock %}
