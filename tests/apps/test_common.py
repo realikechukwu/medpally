@@ -150,3 +150,77 @@ def test_imported_row_prefills_onboarding(tmp_path, cardiology):
     assert user.profile.full_name == "Ada"
     assert user.profile.specialty == cardiology
     assert LegacySubscriber.objects.get().claimed_by == user
+
+
+# ---------------------------------------------------------------- healthz / freshness
+
+
+def _run(**kwargs):
+    from apps.ingestion.models import IngestionRun
+
+    defaults = {
+        "status": IngestionRun.Status.SUCCESS,
+        "command": "ingest_papers",
+        "journals_queried": 51,
+        "papers_created": 12,
+        "finished_at": timezone.now(),
+    }
+    defaults.update(kwargs)
+    return IngestionRun.objects.create(**defaults)
+
+
+def test_healthz_reports_ok_and_freshness(client):
+    _run()
+    resp = client.get(reverse("healthz"))
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ok"
+    assert body["database"] == "ok"
+    assert body["ingestion"]["stale"] is False
+
+
+def test_healthz_reports_stale_without_failing_the_probe(client):
+    """A stale feed must not make the platform cycle a healthy web service."""
+    _run(finished_at=timezone.now() - timezone.timedelta(hours=72))
+    resp = client.get(reverse("healthz"))
+    assert resp.status_code == 200
+    assert resp.json()["ingestion"]["stale"] is True
+
+
+def test_freshness_command_passes_on_a_recent_run():
+    out = StringIO()
+    _run()
+    call_command("check_ingestion_freshness", stdout=out)
+    assert "fresh" in out.getvalue()
+
+
+def test_freshness_command_fails_when_nothing_has_ever_run():
+    with pytest.raises(SystemExit) as exc:
+        call_command("check_ingestion_freshness", stderr=StringIO())
+    assert exc.value.code == 1
+
+
+def test_freshness_command_fails_on_a_stale_run():
+    _run(finished_at=timezone.now() - timezone.timedelta(hours=48))
+    err = StringIO()
+    with pytest.raises(SystemExit):
+        call_command("check_ingestion_freshness", stderr=err)
+    assert "STALE" in err.getvalue()
+
+
+def test_freshness_command_fails_on_a_run_that_queried_no_journals():
+    """The scheduler fired, found nothing to do, and the feed still goes stale."""
+    _run(journals_queried=0)
+    err = StringIO()
+    with pytest.raises(SystemExit):
+        call_command("check_ingestion_freshness", stderr=err)
+    assert "zero journals" in err.getvalue()
+
+
+def test_freshness_command_ignores_failed_and_running_rows():
+    from apps.ingestion.models import IngestionRun
+
+    _run(status=IngestionRun.Status.FAILED)
+    _run(status=IngestionRun.Status.RUNNING, finished_at=None)
+    with pytest.raises(SystemExit):
+        call_command("check_ingestion_freshness", stderr=StringIO())

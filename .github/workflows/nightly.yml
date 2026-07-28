@@ -1,0 +1,76 @@
+name: Nightly ingestion
+
+# The primary scheduler. A Render cron job runs the same commands at 05:00 UTC
+# as a catch-up; running both is safe because ingest_papers holds a Postgres
+# advisory lock, the upsert is idempotent, and the lookback window is 3 days.
+#
+# Kept in Actions rather than only on Render because it is free and it
+# decouples "the site is up" from "ingestion ran" — the two fail independently
+# and should be diagnosed independently.
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: "Lookback window in days (default: INGEST_LOOKBACK_DAYS)"
+        required: false
+        type: string
+      skip_summaries:
+        description: "Ingest and link only, no OpenAI calls"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: nightly-ingestion
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      # No HTTP is served here, but production settings refuse to import
+      # without a host allowlist.
+      DJANGO_ALLOWED_HOSTS: localhost
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_CONN_MAX_AGE: "0"
+      NCBI_EMAIL: ${{ secrets.NCBI_EMAIL }}
+      NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Ingest new papers
+        run: |
+          if [ -n "${{ inputs.since_days }}" ]; then
+            uv run python manage.py ingest_papers --since-days "${{ inputs.since_days }}" --no-summaries
+          else
+            uv run python manage.py ingest_papers --no-summaries
+          fi
+
+      # Re-run specialty matching over the recent back-catalogue. MeSH headings
+      # land weeks to months after publication, so a paper ingested with no
+      # MeSH terms only becomes matchable later — without this it would be
+      # fetched once, matched against nothing, and never seen again.
+      - name: Re-check relevance over the recent window
+        run: uv run python manage.py recheck_relevance
+
+      - name: Summarise
+        if: ${{ !inputs.skip_summaries }}
+        run: uv run python manage.py summarise_papers
+
+      - name: Confirm the run landed
+        run: uv run python manage.py check_ingestion_freshness --max-age-hours 6

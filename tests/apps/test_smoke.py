@@ -40,4 +40,9 @@ def test_admin_login_page_serves(client):
 def test_healthz_reports_ok(client):
     response = client.get("/healthz")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "ok"}
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["database"] == "ok"
+    # Freshness is reported alongside, but never fails the probe — see
+    # tests/apps/test_common.py for that behaviour.
+    assert "ingestion" in body

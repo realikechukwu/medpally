@@ -1,0 +1,110 @@
+# Render blueprint. Create with: Render dashboard -> New -> Blueprint -> this repo.
+#
+# The database is NOT declared here: it lives in Supabase, and Django owns its
+# schema. Never create a Render Postgres alongside it.
+#
+# Free-tier shape, deliberately:
+#   * `migrate` runs in buildCommand rather than as a preDeployCommand, because
+#     preDeployCommand needs a paid instance type. This is safe here only
+#     because a free service runs exactly one instance — with replicas it would
+#     be a migration race and would have to move to preDeploy.
+#   * The web service sleeps after ~15 min idle and takes ~1 min to wake.
+#   * `plan: starter` on the cron job is not optional: Render does not run cron
+#     on free instances. It is the cheapest paid unit (~$1/mo).
+
+services:
+  - type: web
+    name: medfeed
+    runtime: python
+    plan: free
+    region: frankfurt
+    branch: main
+    healthCheckPath: /healthz
+    buildCommand: >-
+      pip install uv &&
+      uv sync --frozen --no-dev &&
+      uv run python manage.py collectstatic --noinput &&
+      uv run python manage.py migrate --noinput
+    # 2 workers x 2 threads to match CONN_MAX_AGE=0 against the Supabase
+    # session pooler: in session mode every connection holds a pool slot for
+    # its whole life and the free-tier pool is about 15 slots.
+    startCommand: >-
+      uv run gunicorn config.wsgi:application
+      --bind 0.0.0.0:$PORT
+      --workers 2
+      --threads 2
+      --timeout 60
+      --access-logfile -
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: PYTHON_VERSION
+        value: "3.13"
+      # sync: false means Render prompts for the value and stores it as a
+      # secret rather than keeping it in this file.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: NCBI_EMAIL
+        sync: false
+      - key: NCBI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: BREVO_SMTP_USER
+        sync: false
+      - key: BREVO_SMTP_KEY
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: SITE_BASE_URL
+        sync: false
+      - key: DB_CONN_MAX_AGE
+        value: "0"
+
+  # Second scheduler. GitHub Actions runs the same ingestion at 02:00 UTC as
+  # the primary; this one at 05:00 UTC is the catch-up. Running both is safe by
+  # construction: ingest_papers takes a Postgres advisory lock so they cannot
+  # overlap, the upsert is idempotent, and the 3-day lookback means a night
+  # missed at 02:00 is picked up here rather than lost.
+  - type: cron
+    name: medfeed-nightly
+    runtime: python
+    plan: starter
+    region: frankfurt
+    branch: main
+    schedule: "0 5 * * *"
+    buildCommand: pip install uv && uv sync --frozen --no-dev
+    startCommand: >-
+      uv run python manage.py ingest_papers &&
+      uv run python manage.py recheck_relevance &&
+      uv run python manage.py summarise_papers
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: PYTHON_VERSION
+        value: "3.13"
+      # The cron job serves no HTTP, so neither of these matters functionally —
+      # they exist only because config.settings.production refuses to import
+      # without them.
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: localhost
+      - key: DATABASE_URL
+        sync: false
+      - key: NCBI_EMAIL
+        sync: false
+      - key: NCBI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DB_CONN_MAX_AGE
+        value: "0"

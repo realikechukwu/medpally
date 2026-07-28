@@ -1,0 +1,39 @@
+name: Ingestion freshness alarm
+
+# Deliberately a separate workflow from nightly.yml, on a separate schedule.
+#
+# A check that only runs at the end of the ingestion job cannot detect the
+# failure that matters most: the scheduler not firing at all. If nightly.yml
+# never starts, nothing inside it ever reports. This runs independently, and a
+# failing scheduled workflow emails the repository owner — which is the whole
+# alerting mechanism at this stage, and enough for it.
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      DJANGO_ALLOWED_HOSTS: localhost
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_CONN_MAX_AGE: "0"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      # 36h rather than 24h: one missed night is absorbed by the next run's
+      # 3-day lookback and is not worth an alert. Two in a row is an outage.
+      - name: Check ingestion freshness
+        run: uv run python manage.py check_ingestion_freshness --max-age-hours 36
