@@ -465,3 +465,127 @@ def test_ingest_lock_skips_a_concurrent_holder(django_db_blocker):
     finally:
         release.set()
         thread.join(5)
+
+
+# ---------------------------------------------------------------- reclassification
+
+
+def _classifiable_paper(pmid, title, *, is_rct, is_priority, abstract="x" * 250, days_ago=1):
+    return Paper.objects.create(
+        pmid=pmid,
+        title=title,
+        abstract=abstract,
+        journal_name_raw="Circulation",
+        entrez_date=timezone.now().date() - timedelta(days=days_ago),
+        feed_date=timezone.now().date() - timedelta(days=days_ago),
+        category=Paper.Category.STANDARD,
+        publication_types=["Journal Article"],
+        is_rct=is_rct,
+        is_priority_study=is_priority,
+        summary_status=Paper.SummaryStatus.OK,
+    )
+
+
+@pytest.mark.django_db
+def test_reclassify_corrects_a_stored_rct_flag():
+    """The exact bug: a title variant the old rules missed, stored as False."""
+    paper = _classifiable_paper(
+        "1",
+        "Mechanical Thrombectomy in Ischemic Stroke: The DISCOUNT Randomized Clinical Trial.",
+        is_rct=False,
+        is_priority=True,
+    )
+    stats = services.reclassify_papers(days=90)
+
+    paper.refresh_from_db()
+    assert paper.is_rct is True
+    assert stats.rct_added == 1
+
+
+@pytest.mark.django_db
+def test_reclassify_clears_a_false_positive():
+    paper = _classifiable_paper(
+        "1",
+        "Drug-coated balloons versus stents: a systematic review and meta-analysis.",
+        is_rct=True,
+        is_priority=True,
+        abstract="We pooled twelve randomised controlled trials. " + "x" * 200,
+    )
+    services.reclassify_papers(days=90)
+
+    paper.refresh_from_db()
+    assert paper.is_rct is False
+
+
+@pytest.mark.django_db
+def test_reclassify_never_moves_a_paper_up_the_feed():
+    """Correcting a badge must not republish months-old papers to the top.
+
+    This is the deliberate difference from recheck_relevance, which does bump
+    feed_date — a paper gaining a specialty link has genuinely just become
+    relevant, whereas this paper was always an RCT and we were simply wrong.
+    """
+    paper = _classifiable_paper(
+        "1",
+        "The DISCOUNT Randomized Clinical Trial.",
+        is_rct=False,
+        is_priority=True,
+        days_ago=60,
+    )
+    original_feed_date = paper.feed_date
+
+    services.reclassify_papers(days=90)
+
+    paper.refresh_from_db()
+    assert paper.is_rct is True
+    assert paper.feed_date == original_feed_date
+
+
+@pytest.mark.django_db
+def test_reclassify_is_idempotent():
+    _classifiable_paper(
+        "1", "The DISCOUNT Randomized Clinical Trial.", is_rct=False, is_priority=True
+    )
+
+    first = services.reclassify_papers(days=90)
+    second = services.reclassify_papers(days=90)
+
+    assert first.changed == 1
+    assert second.changed == 0
+
+
+@pytest.mark.django_db
+def test_reclassify_dry_run_writes_nothing():
+    paper = _classifiable_paper(
+        "1", "The DISCOUNT Randomized Clinical Trial.", is_rct=False, is_priority=True
+    )
+    stats = services.reclassify_papers(days=90, dry_run=True)
+
+    paper.refresh_from_db()
+    assert stats.rct_added == 1  # still reports what it would do
+    assert paper.is_rct is False
+
+
+@pytest.mark.django_db
+def test_reclassify_respects_the_window():
+    paper = _classifiable_paper(
+        "1", "The DISCOUNT Randomized Clinical Trial.", is_rct=False, is_priority=True, days_ago=200
+    )
+    stats = services.reclassify_papers(days=90)
+
+    paper.refresh_from_db()
+    assert stats.examined == 0
+    assert paper.is_rct is False
+
+
+@pytest.mark.django_db
+def test_reclassify_does_not_touch_category_or_summary_state():
+    """Recomputing category could remove papers people have already saved."""
+    paper = _classifiable_paper(
+        "1", "The DISCOUNT Randomized Clinical Trial.", is_rct=False, is_priority=True
+    )
+    services.reclassify_papers(days=90)
+
+    paper.refresh_from_db()
+    assert paper.category == Paper.Category.STANDARD
+    assert paper.summary_status == Paper.SummaryStatus.OK

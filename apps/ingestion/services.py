@@ -430,6 +430,76 @@ def backfill_specialty(specialty: Specialty) -> int:
     return len(created)
 
 
+# ---------------------------------------------------------------- reclassification
+
+
+@dataclass(slots=True)
+class ReclassifyStats:
+    examined: int = 0
+    rct_added: int = 0
+    rct_removed: int = 0
+    priority_added: int = 0
+    priority_removed: int = 0
+
+    @property
+    def changed(self) -> int:
+        return self.rct_added + self.rct_removed + self.priority_added + self.priority_removed
+
+
+def reclassify_papers(*, days: int, dry_run: bool = False) -> ReclassifyStats:
+    """Recompute is_rct / is_priority_study over recently ingested papers.
+
+    Classification flags are computed once at ingest and stored, so a paper
+    keeps whatever the rules said on the night it arrived. When the rules are
+    corrected — as they were for RCT title variants — existing rows stay wrong
+    until something recomputes them. This is that something.
+
+    Two deliberate omissions:
+
+    * `category` is not recomputed. It decides whether a paper is in the feed
+      at all, and papers classified EXCLUDED are dropped before a row is ever
+      created — so recomputing it here could only ever *remove* papers people
+      may already have saved. That is a bigger decision than a badge fix.
+    * `feed_date` is not bumped, unlike recheck_relevance. A paper gaining a
+      specialty link has genuinely just become relevant; a paper gaining an RCT
+      badge was always an RCT and we were wrong. Correcting a badge must not
+      republish months-old papers to the top of every feed.
+    """
+    cutoff = timezone.now().date() - timedelta(days=days)
+    papers = list(Paper.objects.filter(entrez_date__gte=cutoff))
+
+    stats = ReclassifyStats(examined=len(papers))
+    changed: list[Paper] = []
+
+    for paper in papers:
+        new_rct = classify.is_rct(paper.publication_types, paper.title, paper.abstract)
+        new_priority = classify.is_priority_study(
+            paper.publication_types, paper.title, paper.abstract
+        )
+        if new_rct == paper.is_rct and new_priority == paper.is_priority_study:
+            continue
+
+        if new_rct != paper.is_rct:
+            if new_rct:
+                stats.rct_added += 1
+            else:
+                stats.rct_removed += 1
+        if new_priority != paper.is_priority_study:
+            if new_priority:
+                stats.priority_added += 1
+            else:
+                stats.priority_removed += 1
+
+        paper.is_rct = new_rct
+        paper.is_priority_study = new_priority
+        changed.append(paper)
+
+    if changed and not dry_run:
+        Paper.objects.bulk_update(changed, ["is_rct", "is_priority_study"], batch_size=500)
+
+    return stats
+
+
 # ---------------------------------------------------------------- summarisation
 
 

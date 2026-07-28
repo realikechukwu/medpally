@@ -96,6 +96,139 @@ def test_is_rct(pub_types, title, abstract, expected):
     assert is_rct(pub_types, title, abstract) is expected
 
 
+# The publication type arrives weeks to months after publication, so for a
+# brand-new paper the title is the ONLY signal. Every title below is real, taken
+# from the local database, where each was carrying publication_types
+# ["Journal Article"] and nothing else.
+@pytest.mark.parametrize(
+    ("title", "expected"),
+    [
+        # --- naming variants the original four phrases never matched ---
+        (
+            "A Multidomain Lifestyle Intervention for Invasively Confirmed ANOCA: "
+            "The SAMCRO Randomized Trial.",
+            True,
+        ),
+        (
+            "Multidomain Intervention for Growth in Term Small-for-Gestational-Age "
+            "Infants: A Randomized Clinical Trial.",
+            True,
+        ),
+        (
+            "Safe Sleep Video Intervention via Text Messaging to Low-Income Families: "
+            "The SMARTER Randomized Clinical Trial.",
+            True,
+        ),
+        (
+            "Digitally Enabled Quality Improvement Intervention and LDL-C Control in "
+            "Atherosclerotic Cardiovascular Disease: The SAPPHIRE-LDL Cluster "
+            "Randomized Clinical Trial.",
+            True,
+        ),
+        (
+            "Mechanical Thrombectomy in Ischemic Stroke With a Medium or Distal "
+            "Arterial Occlusion: The DISCOUNT Randomized Clinical Trial.",
+            True,
+        ),
+        # An intervening design word must not break the match.
+        (
+            "Cluster randomised feasibility trial of PRISM: the PRimary Care "
+            "Individual Social Norms MSK Data Dashboard.",
+            True,
+        ),
+        ("A randomised, double-blind, placebo-controlled trial of X", True),
+        ("A randomised open-label trial of Y", True),
+        # A prespecified follow-up of randomised participants is still randomised
+        # evidence, and a reader seeing an RCT badge on it is not misled. Called
+        # out explicitly because it is the closest call in this table.
+        (
+            "Treadmill Stress Test in Patients With Asymptomatic Severe Aortic "
+            "Stenosis: A Prespecified Registry-Based Follow-Up of the EARLY TAVR "
+            "Randomized Clinical Trial.",
+            True,
+        ),
+        # --- aggregate designs: these REPORT ON trials, they are not trials ---
+        # All three were already false positives before the widening, because
+        # their abstracts describe the randomised trials they pooled. Widening
+        # the title match without this guard would have made the class larger.
+        (
+            "Cost-Effectiveness of Biportal Endoscopic Spine Surgery Compared with "
+            "Microscopic Surgery for Lumbar Degenerative Diseases: A Pooled Analysis "
+            "of Two Randomized Controlled Trials.",
+            False,
+        ),
+        (
+            "Drug-coated balloons versus drug-eluting stents for de novo coronary "
+            "lesions: a systematic review and meta-analysis of randomised trials.",
+            False,
+        ),
+        ("Efficacy of X: a network meta-analysis of randomised controlled trials", False),
+        # --- must stay negative ---
+        ("A prospective cohort study of Y", False),
+        ("Randomized patients were followed in the registry for five years", False),
+    ],
+)
+def test_is_rct_from_title_alone_before_pubmed_indexes_the_type(title, expected):
+    assert is_rct(["Journal Article"], title, "") is expected
+
+
+def test_aggregate_design_guard_applies_to_the_title_not_the_abstract():
+    """A trial's own abstract routinely says "randomised controlled trial".
+
+    The guard has to key off the title, which states the paper's own design.
+    Keying off the abstract would suppress the badge on most genuine RCTs.
+    """
+    assert is_rct(["Journal Article"], "The DISCOUNT Randomized Clinical Trial", "") is True
+    assert (
+        is_rct(
+            ["Journal Article"],
+            "The DISCOUNT Randomized Clinical Trial",
+            "We compared this against a prior meta-analysis of similar trials.",
+        )
+        is True
+    )
+
+
+def test_explicit_rct_publication_type_beats_the_aggregate_guard():
+    """If PubMed has actually tagged it, trust the controlled vocabulary."""
+    assert is_rct(["Randomized Controlled Trial"], "A pooled analysis of trials", "") is True
+
+
+# Every abstract below is real, from a paper that is NOT a trial. They are the
+# reason the title pattern is not simply run against title + abstract: reviews,
+# registry analyses and scientific statements all discuss other people's trials
+# using the same noun phrase a trial uses to name itself. Only first-person
+# method language distinguishes them.
+@pytest.mark.parametrize(
+    "abstract",
+    [
+        "no differences were identified in this large retrospective analysis; "
+        "a randomized trial with long-term follow-up is necessary.",
+        "adequately powered randomized trials (RCTs) are lacking.",
+        "the emergence of contemporary randomized trials and large population "
+        "analyses has reshaped practice.",
+        "on the basis of randomized clinical trials, the Food and Drug "
+        "Administration approved the regimen.",
+        "we pooled twelve randomised controlled trials comparing the two devices.",
+    ],
+)
+def test_discussing_other_peoples_trials_is_not_being_one(abstract):
+    assert is_rct(["Journal Article"], "Some review of a topic", abstract) is False
+
+
+@pytest.mark.parametrize(
+    "abstract",
+    [
+        "Patients were randomly assigned to two arms.",
+        "random assignment was stratified by centre.",
+        "Participants were randomly allocated 1:1 to intervention or usual care.",
+    ],
+)
+def test_first_person_method_language_still_identifies_a_trial(abstract):
+    """A trial whose title does not name its design is recognised by its methods."""
+    assert is_rct(["Journal Article"], "Effect of X on Y", abstract) is True
+
+
 @pytest.mark.parametrize(
     ("pub_types", "title", "abstract", "expected"),
     [
