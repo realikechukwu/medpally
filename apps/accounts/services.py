@@ -34,6 +34,19 @@ def apply_specialty_preset(user: User, specialty: Specialty) -> None:
     )
 
 
+def reset_journal_selection_to_specialty_preset(user: User, specialty: Specialty) -> None:
+    """Replace an unfinished onboarding selection with the new specialty preset.
+
+    Going back to step one means the reader is starting the journal choice
+    again.  In that narrow case, retaining journals from the previous
+    specialty is surprising.  This is deliberately separate from
+    ``apply_specialty_preset``: changing specialty from the settings page must
+    continue to preserve a reader's manual journal choices.
+    """
+    UserJournalSubscription.objects.filter(user=user).delete()
+    apply_specialty_preset(user, specialty)
+
+
 def apply_journal_selection(user: User, selected_journal_ids: set[int]) -> None:
     """Reconcile a user's checked journals against their subscription rows.
 

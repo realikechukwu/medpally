@@ -25,15 +25,29 @@
   {% csrf_token %}
   {{ form.journals.errors }}
 
-  {% for group_name, journals in groups.items %}
+  {% for group in groups %}
+    {% with journals=group.journals %}
     {% if journals %}
     <div class="journal-group">
-      <div class="journal-group-title">{{ group_name }} ({{ journals|length }})</div>
+      <div class="journal-group-title">{{ group.name }} ({{ journals|length }})</div>
+      {% if group.select_all_label %}
+        <label class="journal-row journal-group-toggle">
+          <span class="journal-name">{{ group.select_all_label }}</span>
+          <span class="journal-checkbox">
+            <input type="checkbox" data-journal-group-toggle="specialty"
+                   aria-label="Select all {{ group.select_all_label|lower }}">
+            <span class="box">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </span>
+          </span>
+        </label>
+      {% endif %}
       {% for journal in journals %}
         <label class="journal-row">
           <span class="journal-name">{{ journal.display_name }}</span>
           <span class="journal-checkbox">
             <input type="checkbox" name="journals" value="{{ journal.pk }}"
+                   {% if group.select_all_label %}data-journal-group="specialty"{% endif %}
                    {% if journal.pk in active_ids %}checked{% endif %}>
             <span class="box">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
@@ -43,6 +57,7 @@
       {% endfor %}
     </div>
     {% endif %}
+    {% endwith %}
   {% endfor %}
 
   <button type="submit" class="btn btn-primary btn-block">{% if is_onboarding %}Continue{% else %}Save{% endif %}</button>

@@ -43,7 +43,12 @@ def profile_step(request: HttpRequest, is_onboarding: bool = True) -> HttpRespon
         if form.is_valid():
             form.save()
             if profile.specialty_id and profile.specialty_id != specialty_before:
-                services.apply_specialty_preset(request.user, profile.specialty)
+                if is_onboarding:
+                    services.reset_journal_selection_to_specialty_preset(
+                        request.user, profile.specialty
+                    )
+                else:
+                    services.apply_specialty_preset(request.user, profile.specialty)
 
             if is_onboarding:
                 return redirect("accounts:onboarding_journals")
@@ -59,7 +64,7 @@ def profile_step(request: HttpRequest, is_onboarding: bool = True) -> HttpRespon
     )
 
 
-def _grouped_journals(specialty) -> dict[str, list[Journal]]:
+def _grouped_journals(specialty) -> list[dict[str, object]]:
     """Your specialty / General medical / Other specialties, in that order."""
     all_journals = list(Journal.objects.filter(is_active=True).order_by("display_name"))
 
@@ -74,11 +79,15 @@ def _grouped_journals(specialty) -> dict[str, list[Journal]]:
     your_specialty = [j for j in all_journals if j.id in your_specialty_ids]
     general = [j for j in all_journals if j.id not in your_specialty_ids and j.is_general]
     other = [j for j in all_journals if j.id not in your_specialty_ids and not j.is_general]
-    return {
-        "Your specialty": your_specialty,
-        "General medical": general,
-        "Other specialties": other,
-    }
+    return [
+        {
+            "name": "Your specialty",
+            "journals": your_specialty,
+            "select_all_label": f"{specialty.name} journals" if specialty else "Specialty journals",
+        },
+        {"name": "General medical", "journals": general, "select_all_label": ""},
+        {"name": "Other specialties", "journals": other, "select_all_label": ""},
+    ]
 
 
 @login_required

@@ -42,7 +42,37 @@ function initBarTitle() {
   ).observe(heading);
 }
 
+// The specialty preset is a useful group on a long journal list.  Its toggle
+// selects every journal in that preset and reflects a partial manual choice.
+function initJournalGroupToggles() {
+  document.querySelectorAll("[data-journal-group-toggle]").forEach(function (toggle) {
+    var group = toggle.getAttribute("data-journal-group-toggle");
+    var journals = document.querySelectorAll('[data-journal-group="' + group + '"]');
+    if (!journals.length) return;
+
+    function syncToggle() {
+      var selected = Array.prototype.filter.call(journals, function (journal) {
+        return journal.checked;
+      }).length;
+      toggle.checked = selected === journals.length;
+      toggle.indeterminate = selected > 0 && selected < journals.length;
+    }
+
+    toggle.addEventListener("change", function () {
+      journals.forEach(function (journal) {
+        journal.checked = toggle.checked;
+      });
+      toggle.indeterminate = false;
+    });
+    journals.forEach(function (journal) {
+      journal.addEventListener("change", syncToggle);
+    });
+    syncToggle();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   initDrawer();
   initBarTitle();
+  initJournalGroupToggles();
 });

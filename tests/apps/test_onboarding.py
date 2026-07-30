@@ -79,6 +79,27 @@ def test_apply_specialty_preset_never_reactivates_a_manually_removed_journal(
     assert sub.is_active is False
 
 
+def test_reset_journal_selection_replaces_old_specialty_preset(user, cardiology, circulation, jacc):
+    spine = Specialty.objects.create(slug="spine", name="Spine Surgery")
+    spine_journal = Journal.objects.create(
+        slug="spine", pubmed_name="Spine", display_name="Spine", short_name="Spine"
+    )
+    SpecialtyJournal.objects.create(specialty=spine, journal=spine_journal, is_default=True)
+
+    services.apply_specialty_preset(user, cardiology)
+    services.reset_journal_selection_to_specialty_preset(user, spine)
+
+    active = set(
+        UserJournalSubscription.objects.filter(user=user, is_active=True).values_list(
+            "journal_id", flat=True
+        )
+    )
+    assert active == {spine_journal.id}
+    assert not UserJournalSubscription.objects.filter(
+        user=user, journal__in=[circulation, jacc]
+    ).exists()
+
+
 # ---------------------------------------------------------------- apply_journal_selection
 
 
@@ -236,6 +257,38 @@ def test_full_onboarding_wizard_end_to_end(client, cardiology, circulation, jacc
     # And now they're through — no more onboarding redirects.
     response = client.get(reverse("feed:list"))
     assert response.status_code == 200
+
+
+def test_changing_specialty_during_onboarding_replaces_previous_journals(
+    client, user, cardiology, circulation
+):
+    spine = Specialty.objects.create(slug="spine", name="Spine Surgery")
+    spine_journal = Journal.objects.create(
+        slug="spine", pubmed_name="Spine", display_name="Spine", short_name="Spine"
+    )
+    SpecialtyJournal.objects.create(specialty=spine, journal=spine_journal, is_default=True)
+    client.force_login(user)
+
+    client.post(
+        reverse("accounts:onboarding_profile"),
+        {"full_name": "Dr. Ada", "workplace": "", "specialty": cardiology.id},
+    )
+    response = client.post(
+        reverse("accounts:onboarding_profile"),
+        {"full_name": "Dr. Ada", "workplace": "", "specialty": spine.id},
+    )
+
+    assert response.url == reverse("accounts:onboarding_journals")
+    active = set(
+        UserJournalSubscription.objects.filter(user=user, is_active=True).values_list(
+            "journal_id", flat=True
+        )
+    )
+    assert active == {spine_journal.id}
+
+    response = client.get(reverse("accounts:onboarding_journals"))
+    assert b"Spine Surgery journals" in response.content
+    assert b'data-journal-group-toggle="specialty"' in response.content
 
 
 def test_settings_pages_reuse_the_same_forms_without_touching_onboarding_state(
