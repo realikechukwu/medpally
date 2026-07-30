@@ -1,97 +1,49 @@
 # MedPally
 
-A per-user feed of summarised medical literature. Clinicians create an account,
-pick their journals, and get a scrollable feed of papers with a short editorial
-note on each — save, like, read later.
+MedPally is a personalised, web-based feed of summarised medical literature. Clinicians choose a specialty and journals; a scheduled pipeline imports PubMed records, identifies relevant papers, and produces a short editorial note for each eligible paper. Users can search, save, like, dismiss, and share papers.
 
-Cardiology first, but a specialty is data (a preset that preselects journals),
-not code.
+The application is cardiology-first, but specialties are catalogue data rather than application code. The existing `cardiology-feed` newsletter is a separate, frozen system; MedPally does not send a digest email.
 
-## Relationship to `cardiology-feed`
+## Start here
 
-[`cardiology-feed`](../cardiology-feed) is the existing weekly newsletter. It is
-**frozen and untouched** — it keeps sending its Friday digest from its own copy
-of the pipeline, to its own Google Sheet subscriber list.
+- [Local development and reconstruction guide](docs/DEVELOPMENT.md)
+- [Architecture and data model](docs/ARCHITECTURE.md)
+- [Ingestion, catalogue, and maintenance runbook](docs/OPERATIONS.md)
+- [Deployment guide](docs/DEPLOY.md)
+- [History-derived changelog](docs/CHANGELOG.md)
 
-This repo owns the refactored engine. The duplication is temporary and
-deliberate: it means the running newsletter carries zero risk while this is
-built. Convergence comes later, by pointing the newsletter at this database or
-retiring it.
+## Quick start
 
-## Layout
-
-```
-engine/     Pure Python. No Django imports. Fetch, parse, classify, match, summarise.
-apps/       Django apps: accounts, catalog, papers, feed, ingestion.
-config/     Django project and per-environment settings.
-tests/      pytest. tests/engine/ needs no database and no network.
-```
-
-`engine/` is deliberately Django-free: its tests run in milliseconds, it can be
-driven from a CLI before any model exists, and the boundary forces every place
-where "journal" stopped being a string and became a database row to be explicit.
-
-## Getting started
+Requires Python 3.13, [uv](https://docs.astral.sh/uv/), Docker, and Docker Compose.
 
 ```bash
 uv sync
-cp .env.example .env      # then fill in NCBI_EMAIL at minimum
-docker compose up -d      # local Postgres on port 5433
+cp .env.example .env
+docker compose up -d
 uv run python manage.py migrate
+uv run python manage.py seed_catalog
 uv run python manage.py runserver
 ```
 
-Tests, lint and types:
+Set `NCBI_EMAIL` in `.env` before running ingestion. `OPENAI_API_KEY` is only needed for real summaries; use `--fake-summariser` or `summarise_papers --fake` when developing without it.
+
+## Quality checks
 
 ```bash
 uv run pytest
-uv run ruff check . && uv run ruff format --check .
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy engine/
 ```
 
-## Driving the engine on its own
+## Repository map
 
-No database, no web server:
-
-```bash
-uv run python -m engine.cli fetch --journal Circulation --since 14 | jq '.[0]'
-uv run python -m engine.cli fetch --journal Circulation --since 14 -o out.json
-uv run python -m engine.cli summarise out.json --specialty cardiology --limit 3 --fake
+```text
+apps/       Django product apps and management commands
+config/     Django settings and URL/WSGI configuration
+engine/     Framework-independent PubMed, relevance, classification, and AI logic
+templates/  Server-rendered Django templates
+static/     CSS, JavaScript, and vendored htmx
+tests/      Unit, integration, and route-level tests
+docs/       Maintainer documentation and changelog
 ```
-
-Drop `--fake` to use the real model (needs `OPENAI_API_KEY`; costs a fraction of
-a cent per paper on `gpt-4o-mini`).
-
-The general-journal filter, which is what keeps a cardiologist's NEJM feed to
-cardiology:
-
-```bash
-uv run python -m engine.cli fetch \
-  --journal "The New England journal of medicine" --since 21 \
-  --specialty-mesh "Heart Failure" --specialty-keyword "cardi*"
-```
-
-## Things worth knowing
-
-**The ingest window uses `[edat]`, not `[dp]`.** `cardiology-feed` windows on
-publication date. For journals that publish online-ahead-of-print, or that
-forward-date an issue, that can be months away from the day PubMed indexed the
-record — so papers are silently missed. One captured fixture (`rct.xml`) has a
-publication date of 2025-11-08 and an Entrez date of 2026-02-09. Publication date
-is still parsed and shown, but only for display; ordering and the ingest window
-use the Entrez date.
-
-**Most fresh papers have no MeSH terms.** MeSH headings arrive weeks to months
-after publication. In a live 3-week NEJM window, only 10 of 74 records carried
-any. That is why relevance matching reads title and abstract as well, why
-vocabulary terms support a `cardi*` stem wildcard, and why `recheck_relevance`
-re-runs matching over recent papers as their MeSH lands.
-
-**Journals are matched on NLM ID and ISSN, not title.** PubMed returns
-"European heart journal", "JAMA cardiology", "BMJ open" and "Lancet (London,
-England)" — none of which match the strings in `cardiology-feed`'s specialty
-configs. Every record carries a stable `NlmUniqueID`.
-
-**The summarisation prompt is copied verbatim** from `cardiology-feed` and is
-versioned (`PROMPT_VERSION`). It is the product voice; changing it means bumping
-the version so stored summaries can be selectively regenerated.
