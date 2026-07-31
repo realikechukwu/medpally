@@ -29,7 +29,7 @@
     {% include "feed/_like_button.html" %}
     <span class="spacer"></span>
     <a class="link-muted" href="{{ paper.url }}" target="_blank" rel="noopener">PubMed</a>
-    <form hx-post="{% url 'feed:dismiss' paper.pmid %}" hx-target="closest article" hx-swap="outerHTML" style="display:inline">
+    <form data-cache-invalidate="feed saved account" hx-post="{% url 'feed:dismiss' paper.pmid %}" hx-target="closest article" hx-swap="outerHTML" style="display:inline">
       {% csrf_token %}
       <button type="submit" class="icon-btn" aria-label="Dismiss">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>

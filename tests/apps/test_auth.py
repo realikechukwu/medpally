@@ -8,6 +8,7 @@ had ever exercised allauth's own views against our username-less User model.
 from __future__ import annotations
 
 import pytest
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
@@ -70,6 +71,19 @@ def test_login_works_with_email(client):
     )
     assert resp.status_code == 200
     assert resp.wsgi_request.user.is_authenticated
+
+
+def test_login_session_is_remembered_for_ninety_days(client):
+    User.objects.create_user(email="reader@example.com", password="a-perfectly-fine-password-42")
+
+    response = client.post(
+        reverse("account_login"),
+        {"login": "reader@example.com", "password": "a-perfectly-fine-password-42"},
+    )
+
+    session_cookie = response.cookies[settings.SESSION_COOKIE_NAME]
+    assert settings.SESSION_COOKIE_AGE == 60 * 60 * 24 * 90
+    assert int(session_cookie["max-age"]) == settings.SESSION_COOKIE_AGE
 
 
 @pytest.mark.parametrize(

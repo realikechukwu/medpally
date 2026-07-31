@@ -23,6 +23,8 @@ function initBarTitle() {
   var slot = bar && bar.querySelector(".top-bar-title");
   if (!slot) return;
 
+  if (window.medpallyBarTitleObserver) window.medpallyBarTitleObserver.disconnect();
+
   var heading = document.querySelector(".page-title");
   if (!heading) {
     // Pages with no heading to collapse (the account page) name themselves in
@@ -34,7 +36,7 @@ function initBarTitle() {
   slot.textContent = heading.textContent.trim();
   // The negative top margin puts the trigger line at the bottom edge of the
   // bar, so the swap lands exactly as the heading disappears behind it.
-  new IntersectionObserver(
+  window.medpallyBarTitleObserver = new IntersectionObserver(
     function (entries) {
       bar.classList.toggle("is-collapsed", !entries[0].isIntersecting);
     },
@@ -46,6 +48,8 @@ function initBarTitle() {
 // selects every journal in that preset and reflects a partial manual choice.
 function initJournalGroupToggles() {
   document.querySelectorAll("[data-journal-group-toggle]").forEach(function (toggle) {
+    if (toggle.dataset.journalGroupInitialised) return;
+    toggle.dataset.journalGroupInitialised = "true";
     var group = toggle.getAttribute("data-journal-group-toggle");
     var journals = document.querySelectorAll('[data-journal-group="' + group + '"]');
     if (!journals.length) return;
@@ -72,14 +76,310 @@ function initJournalGroupToggles() {
 }
 
 function initFeedMenu() {
-  var menu = document.querySelector(".feed-menu");
-  if (!menu) return;
+  if (window.medpallyFeedMenuInitialised) return;
+  window.medpallyFeedMenuInitialised = true;
   document.addEventListener("click", function (event) {
+    var menu = document.querySelector(".feed-menu");
+    if (!menu) return;
     if (menu.open && !menu.contains(event.target)) menu.open = false;
   });
   document.addEventListener("keydown", function (event) {
+    var menu = document.querySelector(".feed-menu");
+    if (!menu) return;
     if (event.key === "Escape") menu.open = false;
   });
+}
+
+// Tab navigation stays progressively enhanced: ordinary links still work if
+// JavaScript is unavailable, while signed-in readers get instant, cached swaps
+// of the content area.  We deliberately use sessionStorage, not a shared HTTP
+// cache: every page contains a reader's personalised feed and saved papers.
+var NAVIGATION_CACHE_VERSION = "v1";
+var NAVIGATION_CACHE_TTL_MS = 5 * 60 * 1000;
+var navigationRequest;
+
+function navigationScope() {
+  return document.body.dataset.navigationUser || "";
+}
+
+function navigationCacheKey(url) {
+  var scope = navigationScope();
+  if (!scope) return "";
+  return "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":" +
+    url.pathname + url.search;
+}
+
+function safeSessionGet(key) {
+  try {
+    return window.sessionStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function safeSessionSet(key, value) {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch (error) {
+    // Private browsing and a full storage area should not stop navigation.
+  }
+}
+
+function readCachedPage(url) {
+  var key = navigationCacheKey(url);
+  var raw = key && safeSessionGet(key);
+  if (!raw) return null;
+  try {
+    var cached = JSON.parse(raw);
+    if (!cached.savedAt || Date.now() - cached.savedAt > NAVIGATION_CACHE_TTL_MS) return null;
+    return cached;
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveCachedPage(url, page) {
+  var key = navigationCacheKey(url);
+  if (!key || !page) return;
+  page.savedAt = Date.now();
+  safeSessionSet(key, JSON.stringify(page));
+}
+
+function pageFromDocument(pageDocument) {
+  var main = pageDocument.getElementById("app-main");
+  var bottomNav = pageDocument.getElementById("bottom-nav");
+  if (!main || !bottomNav) return null;
+
+  var drawerNav = pageDocument.querySelector(".drawer-nav");
+  var barTitle = pageDocument.querySelector(".top-bar-title");
+  return {
+    main: main.outerHTML,
+    bottomNav: bottomNav.outerHTML,
+    drawerNav: drawerNav ? drawerNav.innerHTML : "",
+    barTitle: barTitle ? barTitle.textContent : "",
+    title: pageDocument.title,
+    scrollY: 0,
+  };
+}
+
+function snapshotCurrentPage() {
+  var main = document.getElementById("app-main");
+  var bottomNav = document.getElementById("bottom-nav");
+  if (!main || !bottomNav) return null;
+  var drawerNav = document.querySelector(".drawer-nav");
+  var barTitle = document.querySelector(".top-bar-title");
+  return {
+    main: main.outerHTML,
+    bottomNav: bottomNav.outerHTML,
+    drawerNav: drawerNav ? drawerNav.innerHTML : "",
+    barTitle: barTitle ? barTitle.textContent : "",
+    title: document.title,
+    scrollY: window.scrollY,
+  };
+}
+
+function cacheCurrentPage() {
+  saveCachedPage(new URL(window.location.href), snapshotCurrentPage());
+}
+
+function replaceWithMarkup(current, markup) {
+  var template = document.createElement("template");
+  template.innerHTML = markup.trim();
+  var replacement = template.content.firstElementChild;
+  if (!replacement) return null;
+  current.replaceWith(replacement);
+  return replacement;
+}
+
+function hydratePage() {
+  initBarTitle();
+  initJournalGroupToggles();
+  initFeedMenu();
+  if (window.htmx) window.htmx.process(document.getElementById("app-main"));
+  document.dispatchEvent(new CustomEvent("medpally:page-change"));
+}
+
+function applyPage(page) {
+  var currentMain = document.getElementById("app-main");
+  var currentBottomNav = document.getElementById("bottom-nav");
+  if (!currentMain || !currentBottomNav) return false;
+
+  if (!replaceWithMarkup(currentMain, page.main)) return false;
+  replaceWithMarkup(currentBottomNav, page.bottomNav);
+
+  var drawerNav = document.querySelector(".drawer-nav");
+  if (drawerNav && page.drawerNav) drawerNav.innerHTML = page.drawerNav;
+  var barTitle = document.querySelector(".top-bar-title");
+  if (barTitle) barTitle.textContent = page.barTitle || "";
+  if (page.title) document.title = page.title;
+  hydratePage();
+  return true;
+}
+
+function showNavigationSkeleton() {
+  var main = document.getElementById("app-main");
+  if (!main) return;
+  main.classList.add("is-page-loading");
+  main.setAttribute("aria-busy", "true");
+  main.innerHTML =
+    '<div class="page-loading" role="status"><span class="visually-hidden">Loading page</span>' +
+    '<div class="skeleton skeleton-title"></div><div class="skeleton skeleton-subtitle"></div>' +
+    '<div class="skeleton-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line skeleton-line-short"></div><div class="skeleton skeleton-copy"></div><div class="skeleton skeleton-copy skeleton-copy-short"></div></div>' +
+    '<div class="skeleton-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line skeleton-line-short"></div><div class="skeleton skeleton-copy"></div></div></div>';
+}
+
+function clearNavigationSkeleton() {
+  var main = document.getElementById("app-main");
+  if (main) {
+    main.classList.remove("is-page-loading");
+    main.removeAttribute("aria-busy");
+  }
+}
+
+function restoreScroll(scrollY) {
+  window.requestAnimationFrame(function () {
+    window.scrollTo(0, Number.isFinite(scrollY) ? scrollY : 0);
+  });
+}
+
+async function fetchPage(url, signal) {
+  var response = await window.fetch(url.href, {
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: signal,
+    headers: { "X-MedPally-Navigation": "1" },
+  });
+  if (response.redirected || response.url !== url.href) {
+    window.location.assign(response.url);
+    return null;
+  }
+  if (!response.ok) throw new Error("Navigation request failed");
+  var html = await response.text();
+  var page = pageFromDocument(new DOMParser().parseFromString(html, "text/html"));
+  if (!page) throw new Error("Navigation response is missing page content");
+  return page;
+}
+
+function isModifiedNavigation(event) {
+  return event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey ||
+    event.shiftKey || event.altKey;
+}
+
+async function navigateTo(url, options) {
+  var settings = options || {};
+  if (!navigationScope()) {
+    window.location.assign(url.href);
+    return;
+  }
+  if (url.href === window.location.href && !settings.fromHistory) return;
+
+  if (!settings.fromHistory) cacheCurrentPage();
+  if (navigationRequest) navigationRequest.abort();
+  var request = new AbortController();
+  navigationRequest = request;
+
+  if (settings.push) window.history.pushState({}, "", url.href);
+  var cached = readCachedPage(url);
+  if (cached && applyPage(cached)) {
+    restoreScroll(cached.scrollY);
+    // Keep the rendered page stable while a quiet refresh makes the next
+    // visit current. Replacing it a second time would make scrolling jump.
+    try {
+      var refreshed = await fetchPage(url, request.signal);
+      if (refreshed) saveCachedPage(url, refreshed);
+    } catch (error) {
+      // The cached page is still a useful, private fallback while offline.
+    }
+    return;
+  }
+
+  showNavigationSkeleton();
+  restoreScroll(0);
+  try {
+    var page = await fetchPage(url, request.signal);
+    if (!page) return;
+    if (navigationRequest !== request) return;
+    saveCachedPage(url, page);
+    applyPage(page);
+    clearNavigationSkeleton();
+    restoreScroll(0);
+  } catch (error) {
+    if (error.name !== "AbortError") window.location.assign(url.href);
+  }
+}
+
+function invalidateCachedTabs(tabNames) {
+  var scope = navigationScope();
+  if (!scope) return;
+  var paths = {
+    feed: "/feed/",
+    saved: "/feed/read-later/",
+    account: "/account/",
+  };
+  var prefix = "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":";
+  try {
+    for (var index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+      var key = window.sessionStorage.key(index);
+      if (!key || key.indexOf(prefix) !== 0) continue;
+      tabNames.forEach(function (tabName) {
+        if (paths[tabName] && key.indexOf(prefix + paths[tabName]) === 0) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
+    }
+  } catch (error) {
+    // Cache invalidation is an optimisation; the server remains authoritative.
+  }
+}
+
+function prefetchFrequentlyUsedTabs() {
+  var links = document.querySelectorAll('[data-tab-nav][href="/feed/"], [data-tab-nav][href="/feed/read-later/"]');
+  var urls = [];
+  links.forEach(function (link) {
+    var url = new URL(link.href, window.location.href);
+    if (url.href !== window.location.href && !readCachedPage(url) &&
+      !urls.some(function (candidate) { return candidate.href === url.href; })) {
+      urls.push(url);
+    }
+  });
+  urls.reduce(function (promise, url) {
+    return promise.then(async function () {
+      try {
+        var page = await fetchPage(url);
+        if (page) saveCachedPage(url, page);
+      } catch (error) {
+        // Prefetching must never make the current page feel slower.
+      }
+    });
+  }, Promise.resolve());
+}
+
+function initTabNavigation() {
+  if (!navigationScope() || window.medpallyTabNavigationInitialised) return;
+  window.medpallyTabNavigationInitialised = true;
+  cacheCurrentPage();
+
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest("a[data-tab-nav]");
+    if (!link || isModifiedNavigation(event) || link.target) return;
+    var url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin) return;
+    event.preventDefault();
+    navigateTo(url, { push: true });
+  });
+  window.addEventListener("popstate", function () {
+    navigateTo(new URL(window.location.href), { fromHistory: true, push: false });
+  });
+  window.addEventListener("pagehide", cacheCurrentPage);
+  document.addEventListener("htmx:afterRequest", function (event) {
+    var form = event.detail.elt && event.detail.elt.closest("form[data-cache-invalidate]");
+    if (event.detail.successful && form) {
+      invalidateCachedTabs(form.dataset.cacheInvalidate.split(" "));
+    }
+  });
+
+  var idle = window.requestIdleCallback || function (callback) { window.setTimeout(callback, 700); };
+  idle(prefetchFrequentlyUsedTabs, { timeout: 1500 });
 }
 
 // Authentication is a full-page POST, so provide immediate feedback and block
@@ -113,4 +413,5 @@ document.addEventListener("DOMContentLoaded", function () {
   initJournalGroupToggles();
   initFeedMenu();
   initAuthSubmitLoading();
+  initTabNavigation();
 });

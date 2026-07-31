@@ -123,6 +123,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LOGIN_REDIRECT_URL = "/feed/"
 LOGOUT_REDIRECT_URL = "/"
+# A clinician should not have to authenticate each time they return to the
+# service. The cookie is still invalidated on logout or password change.
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 90
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # allauth (65.x style settings — ACCOUNT_AUTHENTICATION_METHOD and
 # ACCOUNT_EMAIL_REQUIRED are deprecated).
@@ -130,6 +134,7 @@ ACCOUNT_LOGIN_METHODS = {"email"}
 ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_SESSION_REMEMBER = True
 
 # Our User has no username column at all (email is USERNAME_FIELD). Without
 # this, allauth still resolves its default "username" field when building the

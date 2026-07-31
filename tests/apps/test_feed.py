@@ -260,6 +260,19 @@ def test_feed_view_renders_cards(client, user, circulation):
     assert b"A notable finding" in response.content
 
 
+def test_signed_in_feed_includes_progressive_tab_navigation(client, user, circulation):
+    """The normal hrefs remain, but JavaScript can swap and cache these tabs."""
+    subscribe(user, circulation)
+    client.force_login(user)
+
+    response = client.get(reverse("feed:list"))
+
+    assert b'data-navigation-user="' in response.content
+    assert b'id="app-main"' in response.content
+    assert b'id="bottom-nav"' in response.content
+    assert response.content.count(b"data-tab-nav") >= 8  # bottom navigation and drawer
+
+
 def test_two_specialties_see_genuinely_different_feeds(client, cardiology, circulation):
     gp = Specialty.objects.create(slug="gp", name="GP")
     gp_journal = Journal.objects.create(

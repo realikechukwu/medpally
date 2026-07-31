@@ -8,9 +8,9 @@
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
 </head>
-<body>
+<body{% if request.user.is_authenticated %} data-navigation-user="{{ request.user.pk }}"{% endif %}>
   {% if active_tab %}{% include "_top_bar.html" %}{% endif %}
-  <main class="app-main{% if active_tab %} has-bottom-nav{% endif %}{% block content_class %}{% endblock %}">
+  <main id="app-main" class="app-main{% if active_tab %} has-bottom-nav{% endif %}{% block content_class %}{% endblock %}" tabindex="-1">
     {% if messages %}
     <ul class="messages">
       {% for message in messages %}<li>{{ message }}</li>{% endfor %}
@@ -22,26 +22,7 @@
   </main>
 
   {% if active_tab %}
-  <nav class="bottom-nav">
-    <div class="bottom-nav-inner">
-      <a href="{% url 'feed:list' %}" class="{% if active_tab == 'feed' %}is-active{% endif %}">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>
-        <span>Feed</span>
-      </a>
-      <a href="{% url 'feed:read_later' %}" class="{% if active_tab == 'saved' %}is-active{% endif %}">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
-        <span>Saved</span>
-      </a>
-      <a href="{% url 'feed:search' %}" class="{% if active_tab == 'search' %}is-active{% endif %}">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <span>Search</span>
-      </a>
-      <a href="{% url 'accounts:account' %}" class="{% if active_tab == 'account' %}is-active{% endif %}">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-        <span>Account</span>
-      </a>
-    </div>
-  </nav>
+  {% include "_bottom_nav.html" %}
   {% endif %}
 </body>
 </html>
