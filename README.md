@@ -17,7 +17,8 @@ static/     CSS, JavaScript, and vendored htmx
 tests/      Unit, integration, and route-level tests
 ```
 
-Architecture, deployment, and operational documentation is maintained privately and is not published with this repository.
+Oracle Always Free deployment and Render cutover instructions are in
+[setuporacle.md](setuporacle.md).
 
 ## Before pushing
 
