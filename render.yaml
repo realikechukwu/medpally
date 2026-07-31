@@ -3,14 +3,18 @@
 # The database is NOT declared here: it lives in Supabase, and Django owns its
 # schema. Never create a Render Postgres alongside it.
 #
+# Ingestion is NOT declared here either. It runs entirely in GitHub Actions
+# (.github/workflows/nightly.yml, 03:00 UTC daily). Render does not run cron on
+# free instances, so the catch-up cron this file used to declare cost ~$1/mo;
+# it was dropped once the repository went public and Actions minutes became
+# free. Render therefore serves HTTP and nothing else.
+#
 # Free-tier shape, deliberately:
 #   * `migrate` runs in buildCommand rather than as a preDeployCommand, because
 #     preDeployCommand needs a paid instance type. This is safe here only
 #     because a free service runs exactly one instance — with replicas it would
 #     be a migration race and would have to move to preDeploy.
 #   * The web service sleeps after ~15 min idle and takes ~1 min to wake.
-#   * `plan: starter` on the cron job is not optional: Render does not run cron
-#     on free instances. It is the cheapest paid unit (~$1/mo).
 
 services:
   - type: web
@@ -65,46 +69,6 @@ services:
       - key: SENTRY_DSN
         sync: false
       - key: SITE_BASE_URL
-        sync: false
-      - key: DB_CONN_MAX_AGE
-        value: "0"
-
-  # Second scheduler. GitHub Actions runs the same ingestion at 02:00 UTC as
-  # the primary; this one at 05:00 UTC is the catch-up. Running both is safe by
-  # construction: ingest_papers takes a Postgres advisory lock so they cannot
-  # overlap, the upsert is idempotent, and the 3-day lookback means a night
-  # missed at 02:00 is picked up here rather than lost.
-  - type: cron
-    name: medpally-nightly
-    runtime: python
-    plan: starter
-    region: frankfurt
-    branch: main
-    schedule: "0 5 * * *"
-    buildCommand: pip install uv && uv sync --frozen --no-dev
-    startCommand: >-
-      uv run python manage.py ingest_papers &&
-      uv run python manage.py recheck_relevance &&
-      uv run python manage.py summarise_papers
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: config.settings.production
-      - key: PYTHON_VERSION
-        value: "3.13"
-      # The cron job serves no HTTP, so neither of these matters functionally —
-      # they exist only because config.settings.production refuses to import
-      # without them.
-      - key: DJANGO_SECRET_KEY
-        generateValue: true
-      - key: DJANGO_ALLOWED_HOSTS
-        value: localhost
-      - key: DATABASE_URL
-        sync: false
-      - key: NCBI_EMAIL
-        sync: false
-      - key: NCBI_API_KEY
-        sync: false
-      - key: OPENAI_API_KEY
         sync: false
       - key: DB_CONN_MAX_AGE
         value: "0"

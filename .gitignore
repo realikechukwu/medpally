@@ -24,3 +24,8 @@ htmlcov/
 # Scratch output from engine.cli runs
 scratch/
 *.local.json
+
+# Maintainer documentation. Kept local rather than published with the public
+# repository. Note this only stops future commits — the versions already in
+# history stay readable until that history is rewritten.
+docs/

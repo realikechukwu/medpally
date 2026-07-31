@@ -1,15 +1,21 @@
 name: Nightly ingestion
 
-# The primary scheduler. A Render cron job runs the same commands at 05:00 UTC
-# as a catch-up; running both is safe because ingest_papers holds a Postgres
-# advisory lock, the upsert is idempotent, and the lookback window is 3 days.
+# The only ingestion scheduler. A Render cron job used to run the same commands
+# at 05:00 UTC as a catch-up; it was deleted when this repository went public,
+# because Actions minutes are free here and paying for a second scheduler no
+# longer buys anything.
 #
-# Kept in Actions rather than only on Render because it is free and it
-# decouples "the site is up" from "ingestion ran" — the two fail independently
-# and should be diagnosed independently.
+# Daily rather than twice weekly for the same reason. It also matches what the
+# freshness alarm assumes: check_ingestion_freshness defaults to a 36h window,
+# which is only meaningful against a 24h cadence.
+#
+# The concurrency group below and the Postgres advisory lock inside
+# ingest_papers still matter, because a manual workflow_dispatch can overlap a
+# scheduled run. Overlap is safe by construction regardless: the upsert is
+# idempotent and the lookback window is 3 days.
 on:
   schedule:
-    - cron: "0 3 * * 1,4"
+    - cron: "0 3 * * *"
   workflow_dispatch:
     inputs:
       since_days:
