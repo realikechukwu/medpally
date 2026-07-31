@@ -7,6 +7,8 @@ which is the entire cost of getting three settings pages for free.
 
 from __future__ import annotations
 
+from functools import wraps
+
 from allauth.account.models import EmailAddress
 from django.contrib import messages
 from django.contrib.auth import logout
@@ -23,12 +25,30 @@ from . import services
 from .forms import FrequencyForm, JournalsForm, ProfileForm
 
 
+def redirect_completed_onboarding(view):
+    """A completed profile can never re-enter a wizard URL."""
+    @wraps(view)
+    def wrapped(request: HttpRequest, *args, **kwargs):
+        if kwargs.get("is_onboarding", True) and request.user.profile.has_completed_onboarding:
+            names = {
+                "profile_step": "accounts:settings_profile",
+                "journals_step": "accounts:settings_journals",
+                "frequency_step": "accounts:settings_notifications",
+            }
+            return redirect(names[view.__name__])
+        return view(request, *args, **kwargs)
+    return wrapped
+
+
 @login_required
 def onboarding_start(request: HttpRequest) -> HttpResponse:
+    if request.user.profile.has_completed_onboarding:
+        return redirect("feed:list")
     return redirect(services.next_onboarding_url_name(request.user))
 
 
 @login_required
+@redirect_completed_onboarding
 def profile_step(request: HttpRequest, is_onboarding: bool = True) -> HttpResponse:
     profile = request.user.profile
     if is_onboarding and not profile.full_name and not profile.specialty_id:
@@ -71,7 +91,7 @@ def _grouped_journals(specialty) -> list[dict[str, object]]:
     your_specialty_ids: set[int] = set()
     if specialty is not None:
         your_specialty_ids = set(
-            SpecialtyJournal.objects.filter(specialty=specialty).values_list(
+            SpecialtyJournal.objects.filter(specialty=specialty, is_default=True).values_list(
                 "journal_id", flat=True
             )
         )
@@ -91,6 +111,7 @@ def _grouped_journals(specialty) -> list[dict[str, object]]:
 
 
 @login_required
+@redirect_completed_onboarding
 def journals_step(request: HttpRequest, is_onboarding: bool = True) -> HttpResponse:
     profile = request.user.profile
     active_ids = set(
@@ -126,6 +147,7 @@ def journals_step(request: HttpRequest, is_onboarding: bool = True) -> HttpRespo
 
 
 @login_required
+@redirect_completed_onboarding
 def frequency_step(request: HttpRequest, is_onboarding: bool = True) -> HttpResponse:
     profile = request.user.profile
 

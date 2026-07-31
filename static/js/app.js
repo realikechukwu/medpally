@@ -71,8 +71,20 @@ function initJournalGroupToggles() {
   });
 }
 
+function initFeedMenu() {
+  var menu = document.querySelector(".feed-menu");
+  if (!menu) return;
+  document.addEventListener("click", function (event) {
+    if (menu.open && !menu.contains(event.target)) menu.open = false;
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") menu.open = false;
+  });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   initDrawer();
   initBarTitle();
   initJournalGroupToggles();
+  initFeedMenu();
 });

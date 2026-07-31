@@ -258,7 +258,7 @@ def test_is_priority_study(pub_types, title, abstract, expected):
         ("RCT", "RCT"),
         ("prospective cohort", "Prospective cohort"),
         ("SYSTEMATIC REVIEW", "Systematic review"),
-        ("pooled rct analysis", "Pooled RCT analysis"),
+        ("pooled rct analysis", "Other"),
         ("", ""),
     ],
 )

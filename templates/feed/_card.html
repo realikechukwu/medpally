@@ -1,7 +1,7 @@
 {% load covers %}
-<article id="paper-{{ paper.pmid }}" class="card{% if state and state.first_seen_at %} seen{% endif %}"
+<article id="paper-{{ paper.pmid }}" class="card{% if state and state.opened_at %} seen{% endif %}"
   {% if trigger_next and next_cursor %}
-    hx-get="{% url next_url_name|default:'feed:list' %}?cursor={{ next_cursor }}{% if unseen_only %}&unseen=1{% endif %}"
+    hx-get="{% url next_url_name|default:'feed:list' %}{% querystring cursor=next_cursor %}"
     hx-trigger="revealed" hx-swap="afterend"
   {% endif %}>
   {% if show_new_divider %}<div class="new-divider">New since your last visit</div>{% endif %}
@@ -12,7 +12,7 @@
       <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
       <div class="card-date">{{ paper.feed_date }}</div>
     </div>
-    {% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}
+    <div class="card-badges">{% if paper.is_featured %}<span class="badge">★ Featured</span>{% endif %}{% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}{% if paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}</div>
   </div>
 
   <h3><a href="{% url 'paper_detail' paper.pmid %}">{{ paper.title }}</a></h3>

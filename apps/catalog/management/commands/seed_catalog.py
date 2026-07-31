@@ -30,6 +30,7 @@ JOURNAL_FIELDS = (
     "display_name",
     "short_name",
     "is_general",
+    "prestige_weight",
     "is_active",
     "cover_color",
     "cover_color_accent",

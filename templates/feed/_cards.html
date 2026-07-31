@@ -5,12 +5,7 @@
     <div class="empty-state-icon">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
     </div>
-    {% if next_url_name == "feed:read_later" %}
-      <h2>Nothing saved yet</h2>
-      <p>Tap the bookmark on any paper to keep it here.</p>
-    {% else %}
-      <h2>No papers yet</h2>
-      <p>Check back after tonight's ingestion run, or widen your journal picks in Account &rsaquo; Journals.</p>
-    {% endif %}
+    <h2>{{ empty_title|default:"Nothing saved yet" }}</h2>
+    <p>{{ empty_body|default:"Tap the bookmark on any paper to keep it here." }}</p>
   </div>
 {% endfor %}

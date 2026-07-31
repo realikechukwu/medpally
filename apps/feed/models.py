@@ -1,4 +1,4 @@
-"""Per-user state on a paper: seen, opened, saved, liked, dismissed."""
+"""Per-user paper state and per-specialty editorial annotations."""
 
 from __future__ import annotations
 
@@ -59,3 +59,24 @@ class UserPaperState(models.Model):
     @property
     def is_liked(self) -> bool:
         return self.liked_at is not None
+
+
+class FeaturedPaper(models.Model):
+    """A weekly editorial selection, scoped to a specialty rather than a user."""
+
+    paper = models.ForeignKey("papers.Paper", on_delete=models.CASCADE, related_name="featured_links")
+    specialty = models.ForeignKey("catalog.Specialty", on_delete=models.CASCADE, related_name="featured_papers")
+    week_start = models.DateField()
+    rank = models.SmallIntegerField()
+    score = models.FloatField()
+    selected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["specialty", "week_start", "paper"], name="featured_paper_unique"),
+            models.UniqueConstraint(fields=["specialty", "week_start", "rank"], name="featured_rank_unique"),
+        ]
+        indexes = [models.Index(fields=["specialty", "-week_start", "rank"], name="featured_specialty_week_idx")]
+
+    def __str__(self) -> str:
+        return f"{self.specialty_id}/{self.week_start}/#{self.rank}"

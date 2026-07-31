@@ -53,6 +53,8 @@ class Paper(models.Model):
     # Display only. Can sit months away from entrez_date for online-ahead-of-print.
     pub_date = models.DateField(null=True, blank=True)
     pub_date_raw = models.CharField(max_length=40, blank=True, default="")
+    # Always sortable: strict PubMed date parsing can leave pub_date blank.
+    pub_sort_date = models.DateField()
 
     # When PubMed indexed the record. The honest "when did this appear" signal.
     entrez_date = models.DateField()
@@ -103,6 +105,11 @@ class Paper(models.Model):
             ),
             models.Index(fields=["-feed_date", "-id"], name="paper_feed_date_idx"),
             models.Index(
+                fields=["-pub_sort_date", "-id"],
+                condition=models.Q(is_visible=True, summary_status="ok"),
+                name="paper_pub_sort_idx",
+            ),
+            models.Index(
                 fields=["summary_status"],
                 condition=models.Q(summary_status="pending"),
                 name="paper_summary_pending_idx",
@@ -113,6 +120,11 @@ class Paper(models.Model):
 
     def __str__(self) -> str:
         return f"{self.pmid}: {self.title[:60]}"
+
+    def save(self, *args, **kwargs):
+        if self.pub_sort_date is None:
+            self.pub_sort_date = self.pub_date or self.entrez_date
+        super().save(*args, **kwargs)
 
     @property
     def url(self) -> str:

@@ -90,6 +90,8 @@ class Journal(models.Model):
         default=False,
         help_text="General medical journal — its papers are filtered by specialty relevance.",
     )
+    # Editorially maintained, deliberately not an imported impact factor.
+    prestige_weight = models.SmallIntegerField(default=2)
 
     # Deliberately OUR palette, not the journal's brand colours. Covers use our
     # typeface and a plain abbreviation; nominative reference is defensible,

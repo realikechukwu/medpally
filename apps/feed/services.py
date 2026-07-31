@@ -1,4 +1,4 @@
-"""The feed query, keyset pagination, and seen-state bookkeeping.
+"""The feed query, keyset pagination, and per-user state lookup.
 
 Everything here is written to the query-count budget in the plan: the feed
 page itself is one query, seen-state is one lookup plus (at most) one insert,
@@ -10,17 +10,19 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Exists, OuterRef, Q, QuerySet, Subquery
-from django.utils import timezone
 
 from apps.accounts.models import User, UserJournalSubscription
 from apps.papers.models import Paper, PaperSpecialty
 
-from .models import UserPaperState
+from .filters import FeedFilters
+from .models import FeaturedPaper, UserPaperState
 
 
 def feed_queryset(user: User) -> QuerySet[Paper]:
@@ -53,13 +55,16 @@ def feed_queryset(user: User) -> QuerySet[Paper]:
     )
     qs = qs.exclude(Exists(dismissed))
 
-    return qs.order_by("-feed_date", "-is_priority_study", "-id")
+    if profile.specialty_id:
+        featured = FeaturedPaper.objects.filter(paper=OuterRef("pk"), specialty_id=profile.specialty_id)
+        qs = qs.annotate(is_featured=Exists(featured))
+    return qs
 
 
 def exclude_seen(qs: QuerySet[Paper], user: User) -> QuerySet[Paper]:
-    """The ?unseen=1 toggle: hide anything with a recorded impression."""
+    """Hide papers the reader has opened."""
     seen = UserPaperState.objects.filter(
-        user=user, paper=OuterRef("pk"), first_seen_at__isnull=False
+        user=user, paper=OuterRef("pk"), opened_at__isnull=False
     )
     return qs.exclude(Exists(seen))
 
@@ -68,18 +73,31 @@ def exclude_seen(qs: QuerySet[Paper], user: User) -> QuerySet[Paper]:
 
 
 @dataclass(frozen=True, slots=True)
-class Cursor:
-    feed_date: date
-    is_priority_study: bool
-    id: int
+class SortSpec:
+    key: str
+    order_by: tuple[str, ...]
+    fields: tuple[str, ...]
+    parsers: tuple[Callable[[Any], Any], ...]
 
 
-def encode_cursor(paper: Paper) -> str:
-    payload = [paper.feed_date.isoformat(), paper.is_priority_study, paper.id]
+FEED_SORT = SortSpec("feed", ("-feed_date", "-is_priority_study", "-id"), ("feed_date", "is_priority_study", "id"), (date.fromisoformat, bool, int))
+PUB_SORT = SortSpec("pub", ("-pub_sort_date", "-id"), ("pub_sort_date", "id"), (date.fromisoformat, int))
+
+
+def get_sort_spec(key: str) -> SortSpec:
+    return PUB_SORT if key == "pub" else FEED_SORT
+
+
+def encode_cursor(paper: Paper, sort: SortSpec = FEED_SORT) -> str:
+    values = []
+    for field in sort.fields:
+        value = getattr(paper, field)
+        values.append(value.isoformat() if isinstance(value, date) else value)
+    payload = [sort.key, *values]
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
 
-def decode_cursor(raw: str) -> Cursor | None:
+def decode_cursor(raw: str, sort: SortSpec = FEED_SORT) -> tuple[Any, ...] | None:
     """Decode a cursor, or None if it isn't one.
 
     Cursors arrive in a query string, so they arrive tampered with, truncated
@@ -87,15 +105,15 @@ def decode_cursor(raw: str) -> Cursor | None:
     caller falls back to the first page.
     """
     try:
-        feed_date_str, is_priority_study, paper_id = json.loads(
-            base64.urlsafe_b64decode(raw.encode()).decode()
-        )
-        return Cursor(date.fromisoformat(feed_date_str), bool(is_priority_study), int(paper_id))
+        payload = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
+        if not isinstance(payload, list) or len(payload) != len(sort.fields) + 1 or payload[0] != sort.key:
+            return None
+        return tuple(parser(value) for parser, value in zip(sort.parsers, payload[1:], strict=True))
     except (ValueError, TypeError, binascii.Error):
         return None
 
 
-def apply_cursor(qs: QuerySet[Paper], cursor: str | None) -> QuerySet[Paper]:
+def apply_cursor(qs: QuerySet[Paper], cursor: str | None, sort: SortSpec = FEED_SORT) -> QuerySet[Paper]:
     """Expand the cursor into the three-clause form so paper_feed_idx still applies.
 
     Plain OFFSET pagination duplicates and skips cards at page boundaries once
@@ -105,14 +123,14 @@ def apply_cursor(qs: QuerySet[Paper], cursor: str | None) -> QuerySet[Paper]:
     """
     if not cursor:
         return qs
-    c = decode_cursor(cursor)
-    if c is None:
+    values = decode_cursor(cursor, sort)
+    if values is None:
         return qs
-    return qs.filter(
-        Q(feed_date__lt=c.feed_date)
-        | Q(feed_date=c.feed_date, is_priority_study__lt=c.is_priority_study)
-        | Q(feed_date=c.feed_date, is_priority_study=c.is_priority_study, id__lt=c.id)
-    )
+    clause = Q()
+    for i, field in enumerate(sort.fields):
+        equal = {sort.fields[j]: values[j] for j in range(i)}
+        clause |= Q(**equal, **{f"{field}__lt": values[i]})
+    return qs.filter(clause)
 
 
 @dataclass(slots=True)
@@ -124,20 +142,29 @@ class FeedPage:
 def get_feed_page(
     user: User,
     *,
+    filters: FeedFilters | None = None,
     cursor: str | None = None,
     unseen_only: bool = False,
     page_size: int | None = None,
 ) -> FeedPage:
     page_size = page_size or settings.FEED_PAGE_SIZE
+    filters = filters or FeedFilters(tab="unseen" if unseen_only else "all", cursor=cursor or "")
+    sort = get_sort_spec(filters.sort)
     qs = feed_queryset(user)
-    if unseen_only:
+    if filters.tab == "unseen":
         qs = exclude_seen(qs, user)
-    qs = apply_cursor(qs, cursor)
+    if filters.design:
+        qs = qs.filter(summary__study_type__in=filters.study_types())
+    if filters.tab == "featured":
+        if not user.profile.specialty_id:
+            return FeedPage(papers=[], next_cursor=None)
+        qs = qs.filter(is_featured=True)
+    qs = apply_cursor(qs.order_by(*sort.order_by), filters.cursor or cursor, sort)
 
     papers = list(qs[: page_size + 1])
     has_next = len(papers) > page_size
     papers = papers[:page_size]
-    next_cursor = encode_cursor(papers[-1]) if has_next and papers else None
+    next_cursor = encode_cursor(papers[-1], sort) if has_next and papers else None
     return FeedPage(papers=papers, next_cursor=next_cursor)
 
 
@@ -191,15 +218,8 @@ def get_saved_page(
 # ---------------------------------------------------------------- seen state
 
 
-def attach_state_and_record_impressions(
-    user: User, papers: list[Paper]
-) -> dict[int, UserPaperState]:
-    """One lookup, one insert, regardless of page size.
-
-    Returns the state that existed *before* this call — the caller uses that to
-    tell a genuinely new impression from a page the user has already scrolled
-    past, without a second read after the insert.
-    """
+def attach_state(user: User, papers: list[Paper]) -> dict[int, UserPaperState]:
+    """Return existing state for the cards, without treating rendering as reading."""
     if not papers:
         return {}
 
@@ -207,14 +227,5 @@ def attach_state_and_record_impressions(
     existing = {
         s.paper_id: s for s in UserPaperState.objects.filter(user=user, paper_id__in=paper_ids)
     }
-
-    now = timezone.now()
-    to_create = [
-        UserPaperState(user=user, paper_id=pid, first_seen_at=now)
-        for pid in paper_ids
-        if pid not in existing
-    ]
-    if to_create:
-        UserPaperState.objects.bulk_create(to_create, ignore_conflicts=True)
 
     return existing

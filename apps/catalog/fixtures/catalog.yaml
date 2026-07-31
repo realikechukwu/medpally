@@ -135,6 +135,7 @@ journals:
   display_name: Circulation
   short_name: Circ
   is_general: false
+  prestige_weight: 3
   cover_color: '#9f1239'
   specialties:
   - cardiology
@@ -143,6 +144,7 @@ journals:
   display_name: Journal of the American College of Cardiology
   short_name: JACC
   is_general: false
+  prestige_weight: 3
   cover_color: '#be123c'
   specialties:
   - cardiology
@@ -151,6 +153,7 @@ journals:
   display_name: European Heart Journal
   short_name: EHJ
   is_general: false
+  prestige_weight: 3
   cover_color: '#e11d48'
   specialties:
   - cardiology
@@ -159,6 +162,7 @@ journals:
   display_name: JAMA Cardiology
   short_name: JAMA Card
   is_general: false
+  prestige_weight: 3
   cover_color: '#881337'
   specialties:
   - cardiology
@@ -287,6 +291,7 @@ journals:
   display_name: The Lancet
   short_name: Lancet
   is_general: true
+  prestige_weight: 4
   cover_color: '#334155'
   aliases:
   - Lancet
@@ -343,6 +348,7 @@ journals:
   display_name: British Journal of General Practice
   short_name: BJGP
   is_general: false
+  prestige_weight: 3
   cover_color: '#166534'
   specialties:
   - gp
@@ -457,6 +463,7 @@ journals:
   display_name: The BMJ
   short_name: BMJ
   is_general: true
+  prestige_weight: 4
   cover_color: '#1e293b'
   aliases:
   - BMJ
@@ -477,6 +484,7 @@ journals:
   display_name: JAMA
   short_name: JAMA
   is_general: true
+  prestige_weight: 4
   cover_color: '#334155'
   specialties:
   - gp
@@ -493,6 +501,7 @@ journals:
   display_name: Spine
   short_name: Spine
   is_general: false
+  prestige_weight: 3
   cover_color: '#5b21b6'
   specialties:
   - spine

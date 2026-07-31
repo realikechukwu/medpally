@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 from apps.papers.models import Paper
 
 from . import services
+from .filters import FeedFilters
 from .models import UserPaperState
 
 
@@ -19,22 +20,21 @@ def _is_htmx(request: HttpRequest) -> bool:
 
 @login_required
 def feed_list(request: HttpRequest) -> HttpResponse:
-    cursor = request.GET.get("cursor") or None
-    unseen_only = request.GET.get("unseen") == "1"
+    filters = FeedFilters.from_request(request)
 
-    page = services.get_feed_page(request.user, cursor=cursor, unseen_only=unseen_only)
-    previously_seen_states = services.attach_state_and_record_impressions(request.user, page.papers)
+    page = services.get_feed_page(request.user, filters=filters)
+    states = services.attach_state(request.user, page.papers)
 
     profile = request.user.profile
     last_viewed_at = profile.feed_last_viewed_at
-    if cursor is None:
+    if not filters.cursor and filters.is_default():
         profile.feed_last_viewed_at = timezone.now()
         profile.save(update_fields=["feed_last_viewed_at"])
 
     cards = [
         {
             "paper": paper,
-            "state": previously_seen_states.get(paper.id),
+            "state": states.get(paper.id),
             "is_new": bool(last_viewed_at and paper.ingested_at > last_viewed_at),
         }
         for paper in page.papers
@@ -43,7 +43,7 @@ def feed_list(request: HttpRequest) -> HttpResponse:
     # The divider is a heading for the run of new cards, so it belongs above
     # the first of them exactly once — not stamped on every new card, and not
     # repeated on page 2 when infinite scroll appends more.
-    if cursor is None:
+    if not filters.cursor:
         for card in cards:
             if card["is_new"]:
                 card["show_new_divider"] = True
@@ -52,9 +52,11 @@ def feed_list(request: HttpRequest) -> HttpResponse:
     context = {
         "cards": cards,
         "next_cursor": page.next_cursor,
-        "unseen_only": unseen_only,
+        "filters": filters,
         "next_url_name": "feed:list",
         "active_tab": "feed",
+        "empty_title": "Pick a specialty to see this week's top papers" if filters.tab == "featured" and not profile.specialty_id else "No papers yet",
+        "empty_body": "Choose a specialty in your profile to see featured papers." if filters.tab == "featured" and not profile.specialty_id else "Check back after tonight's ingestion run, or widen your journal picks in Account > Journals.",
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/list.html"
     return render(request, template, context)

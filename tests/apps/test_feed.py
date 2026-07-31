@@ -175,11 +175,11 @@ def test_keyset_pagination_over_tied_dates_has_no_duplicates_or_gaps(user, circu
     assert seen_ids == expected_ids
 
 
-def test_unseen_toggle_excludes_previously_seen_papers(user, circulation):
+def test_unseen_toggle_excludes_papers_the_reader_opened(user, circulation):
     subscribe(user, circulation)
     seen = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
     make_paper("2", journal=circulation, feed_date=date(2026, 7, 19))
-    UserPaperState.objects.create(user=user, paper=seen, first_seen_at="2026-07-20T00:00:00Z")
+    UserPaperState.objects.create(user=user, paper=seen, opened_at="2026-07-20T00:00:00Z")
 
     page = services.get_feed_page(user, unseen_only=True)
     assert [p.pmid for p in page.papers] == ["2"]
@@ -188,19 +188,17 @@ def test_unseen_toggle_excludes_previously_seen_papers(user, circulation):
 # ---------------------------------------------------------------- seen state
 
 
-def test_attach_state_records_impressions_once(user, circulation):
+def test_unseen_feed_load_is_a_pure_read(client, user, circulation):
     subscribe(user, circulation)
     paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
+    client.force_login(user)
 
-    before = services.attach_state_and_record_impressions(user, [paper])
-    assert before == {}  # nothing existed yet
-    assert UserPaperState.objects.filter(
-        user=user, paper=paper, first_seen_at__isnull=False
-    ).exists()
+    first = client.get(reverse("feed:list"), {"tab": "unseen"})
+    second = client.get(reverse("feed:list"), {"tab": "unseen"})
 
-    after = services.attach_state_and_record_impressions(user, [paper])
-    assert paper.id in after  # now it's pre-existing
-    assert UserPaperState.objects.filter(user=user, paper=paper).count() == 1  # never duplicated
+    assert paper.title.encode() in first.content
+    assert paper.title.encode() in second.content
+    assert not UserPaperState.objects.filter(user=user, paper=paper).exists()
 
 
 # ---------------------------------------------------------------- feed view

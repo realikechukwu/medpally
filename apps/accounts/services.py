@@ -43,7 +43,7 @@ def reset_journal_selection_to_specialty_preset(user: User, specialty: Specialty
     ``apply_specialty_preset``: changing specialty from the settings page must
     continue to preserve a reader's manual journal choices.
     """
-    UserJournalSubscription.objects.filter(user=user).delete()
+    UserJournalSubscription.objects.filter(user=user, source=UserJournalSubscription.Source.PRESET).delete()
     apply_specialty_preset(user, specialty)
 
 
@@ -98,6 +98,8 @@ def next_onboarding_url_name(user: User) -> str:
     "what's next" is defined exactly once.
     """
     profile = user.profile
+    if profile.has_completed_onboarding:
+        return "feed:list"
     if not profile.specialty_id:
         return "accounts:onboarding_profile"
     if not UserJournalSubscription.objects.filter(user=user, is_active=True).exists():

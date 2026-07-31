@@ -6,9 +6,27 @@
 <div class="page-header">
   <h1 class="page-title">Your feed</h1>
   {% if request.user.profile.specialty %}<p class="page-subtitle">{{ request.user.profile.specialty.name }}</p>{% endif %}
+  <div class="feed-controls">
   <div class="chip-row">
-    <a class="pill-tab{% if not unseen_only %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}">All</a>
-    <a class="pill-tab{% if unseen_only %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}?unseen=1">Unseen</a>
+    <a class="pill-tab{% if filters.tab == 'all' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='all' cursor=None %}">All</a>
+    <a class="pill-tab{% if filters.tab == 'unseen' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='unseen' cursor=None %}">Unseen</a>
+    <a class="pill-tab{% if filters.tab == 'featured' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='featured' cursor=None %}">Featured</a>
+  </div>
+  <details class="feed-menu">
+    <summary aria-label="Feed filters">☷ {% if filters.design %}{{ filters.design|title }}{% elif filters.sort == 'pub' %}Publication date{% else %}Filter & sort{% endif %}</summary>
+    <div class="feed-menu-panel">
+      <strong>Study design</strong>
+      <a href="{% url 'feed:list' %}{% querystring design=None cursor=None %}">Any design</a>
+      <a href="{% url 'feed:list' %}{% querystring design='rct' cursor=None %}">RCT</a>
+      <a href="{% url 'feed:list' %}{% querystring design='meta-analysis' cursor=None %}">Meta-analysis</a>
+      <a href="{% url 'feed:list' %}{% querystring design='systematic-review' cursor=None %}">Systematic review</a>
+      <a href="{% url 'feed:list' %}{% querystring design='guideline' cursor=None %}">Guideline</a>
+      <a href="{% url 'feed:list' %}{% querystring design='cohort' cursor=None %}">Cohort</a>
+      <strong>Sort by</strong>
+      <a href="{% url 'feed:list' %}{% querystring sort='feed' cursor=None %}">Feed date</a>
+      <a href="{% url 'feed:list' %}{% querystring sort='pub' cursor=None %}">Publication date</a>
+    </div>
+  </details>
   </div>
 </div>
 
