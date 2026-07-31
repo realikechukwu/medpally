@@ -55,8 +55,12 @@ def feed_list(request: HttpRequest) -> HttpResponse:
         "filters": filters,
         "next_url_name": "feed:list",
         "active_tab": "feed",
-        "empty_title": "Pick a specialty to see this week's top papers" if filters.tab == "featured" and not profile.specialty_id else "No papers yet",
-        "empty_body": "Choose a specialty in your profile to see featured papers." if filters.tab == "featured" and not profile.specialty_id else "Check back after tonight's ingestion run, or widen your journal picks in Account > Journals.",
+        "empty_title": "Pick a specialty to see this week's top papers"
+        if filters.tab == "featured" and not profile.specialty_id
+        else "No papers yet",
+        "empty_body": "Choose a specialty in your profile to see featured papers."
+        if filters.tab == "featured" and not profile.specialty_id
+        else "Check back after tonight's ingestion run, or widen your journal picks in Account > Journals.",
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/list.html"
     return render(request, template, context)

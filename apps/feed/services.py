@@ -56,16 +56,16 @@ def feed_queryset(user: User) -> QuerySet[Paper]:
     qs = qs.exclude(Exists(dismissed))
 
     if profile.specialty_id:
-        featured = FeaturedPaper.objects.filter(paper=OuterRef("pk"), specialty_id=profile.specialty_id)
+        featured = FeaturedPaper.objects.filter(
+            paper=OuterRef("pk"), specialty_id=profile.specialty_id
+        )
         qs = qs.annotate(is_featured=Exists(featured))
     return qs
 
 
 def exclude_seen(qs: QuerySet[Paper], user: User) -> QuerySet[Paper]:
     """Hide papers the reader has opened."""
-    seen = UserPaperState.objects.filter(
-        user=user, paper=OuterRef("pk"), opened_at__isnull=False
-    )
+    seen = UserPaperState.objects.filter(user=user, paper=OuterRef("pk"), opened_at__isnull=False)
     return qs.exclude(Exists(seen))
 
 
@@ -80,8 +80,15 @@ class SortSpec:
     parsers: tuple[Callable[[Any], Any], ...]
 
 
-FEED_SORT = SortSpec("feed", ("-feed_date", "-is_priority_study", "-id"), ("feed_date", "is_priority_study", "id"), (date.fromisoformat, bool, int))
-PUB_SORT = SortSpec("pub", ("-pub_sort_date", "-id"), ("pub_sort_date", "id"), (date.fromisoformat, int))
+FEED_SORT = SortSpec(
+    "feed",
+    ("-feed_date", "-is_priority_study", "-id"),
+    ("feed_date", "is_priority_study", "id"),
+    (date.fromisoformat, bool, int),
+)
+PUB_SORT = SortSpec(
+    "pub", ("-pub_sort_date", "-id"), ("pub_sort_date", "id"), (date.fromisoformat, int)
+)
 
 
 def get_sort_spec(key: str) -> SortSpec:
@@ -106,14 +113,20 @@ def decode_cursor(raw: str, sort: SortSpec = FEED_SORT) -> tuple[Any, ...] | Non
     """
     try:
         payload = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
-        if not isinstance(payload, list) or len(payload) != len(sort.fields) + 1 or payload[0] != sort.key:
+        if (
+            not isinstance(payload, list)
+            or len(payload) != len(sort.fields) + 1
+            or payload[0] != sort.key
+        ):
             return None
         return tuple(parser(value) for parser, value in zip(sort.parsers, payload[1:], strict=True))
     except (ValueError, TypeError, binascii.Error):
         return None
 
 
-def apply_cursor(qs: QuerySet[Paper], cursor: str | None, sort: SortSpec = FEED_SORT) -> QuerySet[Paper]:
+def apply_cursor(
+    qs: QuerySet[Paper], cursor: str | None, sort: SortSpec = FEED_SORT
+) -> QuerySet[Paper]:
     """Expand the cursor into the three-clause form so paper_feed_idx still applies.
 
     Plain OFFSET pagination duplicates and skips cards at page boundaries once

@@ -199,19 +199,40 @@ def is_priority_study(pub_types: Iterable[str], title: str = "", abstract: str =
     return any(phrase in text_lower for phrase in PRIORITY_TEXT_PHRASES)
 
 
-CANONICAL_STUDY_TYPES = frozenset({
-    "RCT", "Meta-analysis", "Systematic review", "Guideline", "Prospective cohort",
-    "Retrospective cohort", "Case-control", "Case series", "Narrative review", "Other",
-})
+CANONICAL_STUDY_TYPES = frozenset(
+    {
+        "RCT",
+        "Meta-analysis",
+        "Systematic review",
+        "Guideline",
+        "Prospective cohort",
+        "Retrospective cohort",
+        "Case-control",
+        "Case series",
+        "Narrative review",
+        "Other",
+    }
+)
 _STUDY_TYPE_ALIASES = {
-    "rct": "RCT", "randomized controlled trial": "RCT", "randomised controlled trial": "RCT",
-    "randomized trial": "RCT", "randomised trial": "RCT", "meta analysis": "Meta-analysis",
-    "meta-analysis": "Meta-analysis", "systematic review": "Systematic review",
-    "clinical practice guideline": "Guideline", "guideline": "Guideline",
-    "prospective cohort": "Prospective cohort", "prospective cohort study": "Prospective cohort",
-    "retrospective cohort": "Retrospective cohort", "retrospective cohort study": "Retrospective cohort",
-    "case control": "Case-control", "case-control": "Case-control", "case series": "Case series",
-    "narrative review": "Narrative review", "other": "Other",
+    "rct": "RCT",
+    "randomized controlled trial": "RCT",
+    "randomised controlled trial": "RCT",
+    "randomized trial": "RCT",
+    "randomised trial": "RCT",
+    "meta analysis": "Meta-analysis",
+    "meta-analysis": "Meta-analysis",
+    "systematic review": "Systematic review",
+    "clinical practice guideline": "Guideline",
+    "guideline": "Guideline",
+    "prospective cohort": "Prospective cohort",
+    "prospective cohort study": "Prospective cohort",
+    "retrospective cohort": "Retrospective cohort",
+    "retrospective cohort study": "Retrospective cohort",
+    "case control": "Case-control",
+    "case-control": "Case-control",
+    "case series": "Case series",
+    "narrative review": "Narrative review",
+    "other": "Other",
 }
 
 

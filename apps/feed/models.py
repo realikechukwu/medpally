@@ -64,8 +64,12 @@ class UserPaperState(models.Model):
 class FeaturedPaper(models.Model):
     """A weekly editorial selection, scoped to a specialty rather than a user."""
 
-    paper = models.ForeignKey("papers.Paper", on_delete=models.CASCADE, related_name="featured_links")
-    specialty = models.ForeignKey("catalog.Specialty", on_delete=models.CASCADE, related_name="featured_papers")
+    paper = models.ForeignKey(
+        "papers.Paper", on_delete=models.CASCADE, related_name="featured_links"
+    )
+    specialty = models.ForeignKey(
+        "catalog.Specialty", on_delete=models.CASCADE, related_name="featured_papers"
+    )
     week_start = models.DateField()
     rank = models.SmallIntegerField()
     score = models.FloatField()
@@ -73,10 +77,18 @@ class FeaturedPaper(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["specialty", "week_start", "paper"], name="featured_paper_unique"),
-            models.UniqueConstraint(fields=["specialty", "week_start", "rank"], name="featured_rank_unique"),
+            models.UniqueConstraint(
+                fields=["specialty", "week_start", "paper"], name="featured_paper_unique"
+            ),
+            models.UniqueConstraint(
+                fields=["specialty", "week_start", "rank"], name="featured_rank_unique"
+            ),
         ]
-        indexes = [models.Index(fields=["specialty", "-week_start", "rank"], name="featured_specialty_week_idx")]
+        indexes = [
+            models.Index(
+                fields=["specialty", "-week_start", "rank"], name="featured_specialty_week_idx"
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.specialty_id}/{self.week_start}/#{self.rank}"

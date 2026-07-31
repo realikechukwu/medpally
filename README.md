@@ -19,6 +19,15 @@ tests/      Unit, integration, and route-level tests
 
 Architecture, deployment, and operational documentation is maintained privately and is not published with this repository.
 
+## Before pushing
+
+Run `make ci` to execute the same checks as GitHub Actions. To prevent a
+formatting-only CI failure at commit time, enable the repository hook once:
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## License
 
 Proprietary — copyright © 2026 Ikechukwu Chukwudi, all rights reserved. Public for reference only, not for reuse. See [LICENSE](LICENSE) for the full terms and for how to request permission.

@@ -5,8 +5,12 @@ from engine.featured import FeaturedCandidate, rank_featured, score_candidate, w
 
 def candidate(**kwargs):
     defaults = {
-        "paper_id": 1, "study_type": "RCT", "journal_prestige": 2,
-        "likes": 0, "saves": 0, "feed_date": date(2026, 7, 26),
+        "paper_id": 1,
+        "study_type": "RCT",
+        "journal_prestige": 2,
+        "likes": 0,
+        "saves": 0,
+        "feed_date": date(2026, 7, 26),
     }
     defaults.update(kwargs)
     return FeaturedCandidate(**defaults)
@@ -28,7 +32,9 @@ def test_ranking_floors_thin_weeks_and_breaks_ties_by_recency_then_id():
     same_day_higher_id = candidate(paper_id=3, feed_date=date(2026, 7, 21))
 
     assert rank_featured([low]) == []
-    assert [item.candidate.paper_id for item in rank_featured([older, newer, same_day_higher_id])] == [3, 2, 1]
+    assert [
+        item.candidate.paper_id for item in rank_featured([older, newer, same_day_higher_id])
+    ] == [3, 2, 1]
 
 
 def test_week_start_is_monday():

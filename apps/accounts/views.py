@@ -27,6 +27,7 @@ from .forms import FrequencyForm, JournalsForm, ProfileForm
 
 def redirect_completed_onboarding(view):
     """A completed profile can never re-enter a wizard URL."""
+
     @wraps(view)
     def wrapped(request: HttpRequest, *args, **kwargs):
         if kwargs.get("is_onboarding", True) and request.user.profile.has_completed_onboarding:
@@ -37,6 +38,7 @@ def redirect_completed_onboarding(view):
             }
             return redirect(names[view.__name__])
         return view(request, *args, **kwargs)
+
     return wrapped
 
 

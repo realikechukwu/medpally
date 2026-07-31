@@ -82,9 +82,35 @@ function initFeedMenu() {
   });
 }
 
+// Authentication is a full-page POST, so provide immediate feedback and block
+// accidental double-submits while the browser follows the response or redirect.
+function initAuthSubmitLoading() {
+  document.querySelectorAll(".auth-shell form").forEach(function (form) {
+    form.addEventListener("submit", function () {
+      var button = form.querySelector('button[type="submit"]');
+      if (!button || button.disabled) return;
+
+      var label = button.textContent.trim().toLowerCase();
+      var loadingLabel = label.indexOf("sign up") >= 0 ? "Creating account…" :
+        label.indexOf("sign") >= 0 || label.indexOf("log") >= 0 ? "Signing in…" :
+        label.indexOf("continue") >= 0 ? "Continuing…" : "Please wait…";
+      button.disabled = true;
+      button.classList.add("is-loading");
+      button.setAttribute("aria-busy", "true");
+      button.replaceChildren();
+      var spinner = document.createElement("span");
+      spinner.className = "button-spinner";
+      spinner.setAttribute("aria-hidden", "true");
+      button.appendChild(spinner);
+      button.appendChild(document.createTextNode(loadingLabel));
+    });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   initDrawer();
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initAuthSubmitLoading();
 });

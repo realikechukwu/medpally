@@ -43,7 +43,9 @@ def reset_journal_selection_to_specialty_preset(user: User, specialty: Specialty
     ``apply_specialty_preset``: changing specialty from the settings page must
     continue to preserve a reader's manual journal choices.
     """
-    UserJournalSubscription.objects.filter(user=user, source=UserJournalSubscription.Source.PRESET).delete()
+    UserJournalSubscription.objects.filter(
+        user=user, source=UserJournalSubscription.Source.PRESET
+    ).delete()
     apply_specialty_preset(user, specialty)
 
 

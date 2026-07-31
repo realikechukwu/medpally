@@ -36,4 +36,6 @@ class Command(BaseCommand):
             self.stdout.write(f"{specialty.slug}: {len(selected)} selected")
             if options["explain"]:
                 for item in selected:
-                    self.stdout.write(f"  #{item.candidate.paper_id} {item.score:g} {dict(item.components)}")
+                    self.stdout.write(
+                        f"  #{item.candidate.paper_id} {item.score:g} {dict(item.components)}"
+                    )

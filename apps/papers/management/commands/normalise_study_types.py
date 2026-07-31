@@ -28,4 +28,6 @@ class Command(BaseCommand):
                     changed += 1
             if options["dry_run"]:
                 transaction.set_rollback(True)
-        self.stdout.write(f"{changed} study types {'would be ' if options['dry_run'] else ''}normalized")
+        self.stdout.write(
+            f"{changed} study types {'would be ' if options['dry_run'] else ''}normalized"
+        )

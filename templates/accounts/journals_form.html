@@ -31,8 +31,11 @@
     <div class="journal-group">
       <div class="journal-group-title">{{ group.name }} ({{ journals|length }})</div>
       {% if group.select_all_label %}
-        <label class="journal-row journal-group-toggle">
-          <span class="journal-name">{{ group.select_all_label }}</span>
+        <label class="journal-group-toggle">
+          <span class="journal-group-toggle-copy">
+            <span class="journal-group-toggle-title">Select all {{ group.select_all_label }}</span>
+            <span class="journal-group-toggle-detail">Core specialty selection · {{ journals|length }} journals</span>
+          </span>
           <span class="journal-checkbox">
             <input type="checkbox" data-journal-group-toggle="specialty"
                    aria-label="Select all {{ group.select_all_label|lower }}">
@@ -41,6 +44,7 @@
             </span>
           </span>
         </label>
+        <div class="journal-specialty-items">
       {% endif %}
       {% for journal in journals %}
         <label class="journal-row">
@@ -55,6 +59,9 @@
           </span>
         </label>
       {% endfor %}
+      {% if group.select_all_label %}
+        </div>
+      {% endif %}
     </div>
     {% endif %}
     {% endwith %}

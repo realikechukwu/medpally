@@ -1,0 +1,4 @@
+#!/bin/sh
+# Keep formatting-only CI failures from reaching GitHub. The full suite remains
+# available through `make ci` and GitHub Actions.
+uv run ruff format --check . && uv run ruff check .
