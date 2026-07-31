@@ -1,8 +1,8 @@
-"""Redirects any signed-in, not-yet-onboarded user to the next wizard step.
+"""Guide unfinished readers to onboarding without blocking their feed.
 
-Makes the wizard both resumable (close the tab after step 1, come back next
-week, land on step 2) and un-skippable (there is no URL that gets you to the
-feed without a specialty and at least one journal).
+The feed is the first useful destination after signing in.  Onboarding stays
+resumable through its own URLs, while readers can browse the app and complete
+their profile when they are ready.
 """
 
 from __future__ import annotations
@@ -18,7 +18,15 @@ from apps.accounts import services
 # /p/ is on this list because it is the public share page: someone who signed
 # up from a shared link and hasn't finished onboarding should still be able to
 # read the paper that brought them here, not be bounced into the wizard.
-ALLOWED_PREFIXES = ("/onboarding/", "/accounts/", "/static/", "/admin/", "/healthz", "/p/")
+ALLOWED_PREFIXES = (
+    "/onboarding/",
+    "/accounts/",
+    "/feed/",
+    "/static/",
+    "/admin/",
+    "/healthz",
+    "/p/",
+)
 
 
 class OnboardingMiddleware:

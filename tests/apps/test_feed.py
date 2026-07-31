@@ -47,9 +47,8 @@ def nejm(cardiology):
 def make_user(email: str, specialty: Specialty):
     """An onboarded user.
 
-    onboarding_completed_at is not optional here: without it OnboardingMiddleware
-    302s every feed request to the wizard and content assertions run against an
-    empty body.
+    Setting up a specialty makes the fixture representative of a configured
+    reader whose personalised feed has content to assert against.
     """
     u = User.objects.create_user(email=email, password="pw12345!")
     u.profile.specialty = specialty

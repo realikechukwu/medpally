@@ -1,18 +1,22 @@
-// Progressive enhancement for the CSS-only drawer: Escape closes it, and the
-// hamburger exposes its open/closed state to assistive tech.
+// Progressive enhancement for the CSS-only drawer: Escape and navigation close
+// it, and the hamburger exposes its open/closed state to assistive tech.
+function closeDrawer() {
+  var toggle = document.getElementById("drawer-toggle");
+  if (!toggle || !toggle.checked) return;
+  toggle.checked = false;
+  toggle.dispatchEvent(new Event("change"));
+}
+
 function initDrawer() {
   var toggle = document.getElementById("drawer-toggle");
   if (!toggle) return;
   toggle.setAttribute("role", "button");
-  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-expanded", toggle.checked ? "true" : "false");
   toggle.addEventListener("change", function () {
     toggle.setAttribute("aria-expanded", toggle.checked ? "true" : "false");
   });
   document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && toggle.checked) {
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event("change"));
-    }
+    if (event.key === "Escape") closeDrawer();
   });
 }
 
@@ -364,6 +368,7 @@ function initTabNavigation() {
     if (!link || isModifiedNavigation(event) || link.target) return;
     var url = new URL(link.href, window.location.href);
     if (url.origin !== window.location.origin) return;
+    if (link.closest(".drawer")) closeDrawer();
     event.preventDefault();
     navigateTo(url, { push: true });
   });

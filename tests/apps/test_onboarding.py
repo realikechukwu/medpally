@@ -166,30 +166,27 @@ def test_prefill_from_legacy_subscriber_is_a_noop_with_no_match(user):
 # ---------------------------------------------------------------- middleware
 
 
-def test_middleware_redirects_unfinished_user_to_profile_step(client, user):
+def test_middleware_allows_unfinished_user_to_open_the_feed(client, user):
     client.force_login(user)
     response = client.get("/feed/")
-    assert response.status_code == 302
-    assert response.url == reverse("accounts:onboarding_profile")
+    assert response.status_code == 200
 
 
-def test_middleware_redirects_to_journals_once_specialty_is_set(client, user, cardiology):
+def test_middleware_allows_feed_when_only_specialty_is_set(client, user, cardiology):
     user.profile.specialty = cardiology
     user.profile.save()
     client.force_login(user)
     response = client.get("/feed/")
-    assert response.url == reverse("accounts:onboarding_journals")
+    assert response.status_code == 200
 
 
-def test_middleware_redirects_to_frequency_once_journals_exist(
-    client, user, cardiology, circulation
-):
+def test_middleware_allows_feed_when_only_journals_remain(client, user, cardiology, circulation):
     user.profile.specialty = cardiology
     user.profile.save()
     UserJournalSubscription.objects.create(user=user, journal=circulation)
     client.force_login(user)
     response = client.get("/feed/")
-    assert response.url == reverse("accounts:onboarding_frequency")
+    assert response.status_code == 200
 
 
 def test_middleware_allows_completed_user_through(client, user, cardiology, circulation):

@@ -43,8 +43,7 @@ def test_signup_creates_an_account_and_starts_onboarding(client):
     assert user.profile is not None
     assert user.profile.onboarding_completed_at is None
 
-    # A brand-new account has nothing to read yet, so the middleware should
-    # have routed them into the wizard rather than an empty feed.
+    # Signup starts setup, while a returning reader's login goes to the feed.
     assert resp.redirect_chain
     assert resp.redirect_chain[-1][0] == reverse("accounts:onboarding_profile")
 
@@ -62,7 +61,7 @@ def test_signup_rejects_a_duplicate_email(client):
     assert User.objects.filter(email="taken@example.com").count() == 1
 
 
-def test_login_works_with_email(client):
+def test_login_works_with_email_and_lands_on_the_feed(client):
     User.objects.create_user(email="reader@example.com", password="a-perfectly-fine-password-42")
     resp = client.post(
         reverse("account_login"),
@@ -71,6 +70,7 @@ def test_login_works_with_email(client):
     )
     assert resp.status_code == 200
     assert resp.wsgi_request.user.is_authenticated
+    assert resp.redirect_chain[-1][0] == reverse("feed:list")
 
 
 def test_login_session_is_remembered_for_ninety_days(client):
