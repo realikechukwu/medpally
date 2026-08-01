@@ -49,5 +49,13 @@ jobs:
       - name: Check for missing migrations
         run: uv run python manage.py makemigrations --check --dry-run
 
+      - name: Validate Oracle deployment configuration
+        run: >-
+          ORACLE_ENV_FILE=.env.example
+          docker compose -f deploy/oracle/compose.yaml config --quiet
+
+      - name: Build Oracle deployment image
+        run: docker build --file deploy/oracle/Dockerfile --tag medpally:ci .
+
       - name: Test
         run: uv run pytest -m "not network" --cov --cov-report=term-missing

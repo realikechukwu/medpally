@@ -1,0 +1,13 @@
+{$DOMAIN}, {$TEST_DOMAIN} {
+    encode zstd gzip
+    reverse_proxy web:8000
+
+    header {
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
