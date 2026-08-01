@@ -1,0 +1,58 @@
+name: Deploy to Oracle
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-oracle-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ORACLE_HOST: 141.147.91.21
+      ORACLE_USER: ubuntu
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure deployment SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ORACLE_DEPLOY_SSH_KEY }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' '141.147.91.21 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFoR7NzwdaGOrL09y66q8g+oa1mzpIPyrcPGnnSVLyAL' > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync application source
+        run: |
+          rsync -az --delete-delay \
+            --exclude='/.env' \
+            --exclude='/deploy/oracle/.env' \
+            --exclude='/.git/' \
+            --exclude='/.venv/' \
+            --exclude='/staticfiles/' \
+            --exclude='__pycache__/' \
+            --exclude='.pytest_cache/' \
+            --exclude='.mypy_cache/' \
+            --exclude='.ruff_cache/' \
+            --exclude='.DS_Store' \
+            --exclude='._*' \
+            -e 'ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes' \
+            ./ "$ORACLE_USER@$ORACLE_HOST:/opt/medpally/"
+
+      - name: Build, restart, and health-check
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$ORACLE_USER@$ORACLE_HOST" \
+            'cd /opt/medpally && deploy/oracle/update.sh'

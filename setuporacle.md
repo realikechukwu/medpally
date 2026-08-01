@@ -259,6 +259,16 @@ Then:
    docker compose -f /opt/medpally/deploy/oracle/compose.yaml logs -f --tail 100
    ```
 
+## 10. Deploy updates from GitHub Actions
+
+The `deploy-oracle.yml` workflow deploys every push to `main`. It uses the
+repository secret `ORACLE_DEPLOY_SSH_KEY`, a dedicated SSH key that is limited
+to the Oracle deployment user. The workflow syncs source files while preserving
+`deploy/oracle/.env`, then builds, starts, and health-checks the stack.
+
+Keep the production environment file on the VM only; it must never be added to
+GitHub Actions secrets or committed to the repository.
+
 If the production hostname itself is changing, also update:
 
 - Google OAuth authorized JavaScript origins and callback URI.
@@ -400,4 +410,3 @@ URL-encoded, an empty host allowlist, or a failed migration.
 
 Inspect with `df -h` and `docker system df`. Prune unused image/build cache, not
 named volumes. Caddy's named volumes are small and should normally be retained.
-
