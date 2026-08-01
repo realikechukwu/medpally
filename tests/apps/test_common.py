@@ -1,8 +1,10 @@
-"""The landing page, error templates, and the legacy subscriber importer."""
+"""The landing page, the installable app, and the legacy subscriber importer."""
 
 from __future__ import annotations
 
 import csv
+import json
+import re
 from io import StringIO
 
 import pytest
@@ -55,6 +57,69 @@ def test_landing_page_does_not_swallow_the_onboarding_routes(client):
     """apps.accounts.urls is also mounted at "" — both must still resolve."""
     assert reverse("landing") == "/"
     assert reverse("accounts:onboarding_profile") == "/onboarding/profile/"
+
+
+def test_landing_page_dresses_the_browser_chrome_in_the_hero_colour(client):
+    """The hero runs edge to edge, so a white browser bar would show as a seam."""
+    resp = client.get(reverse("landing"))
+    assert b'<meta name="theme-color" content="#123A4D">' in resp.content
+
+
+# ---------------------------------------------------------------- installable app
+
+
+def test_manifest_meets_the_install_criteria(client):
+    resp = client.get(reverse("manifest"))
+    assert resp.status_code == 200
+    assert resp["Content-Type"] == "application/manifest+json"
+
+    manifest = json.loads(resp.content)
+    assert manifest["start_url"] == "/"
+    assert manifest["display"] == "standalone"
+    # Chrome will not offer to install without both of these sizes, and Android
+    # crops a non-maskable icon into a circle without asking.
+    assert {"192x192", "512x512"} <= {icon["sizes"] for icon in manifest["icons"]}
+    assert any(icon["purpose"] == "maskable" for icon in manifest["icons"])
+
+
+def test_service_worker_is_served_from_the_site_root(client):
+    """A worker under /static/ could only ever control /static/."""
+    resp = client.get(reverse("service_worker"))
+    assert resp.status_code == 200
+    assert resp["Content-Type"].startswith("text/javascript")
+    assert resp.request["PATH_INFO"] == "/sw.js"
+
+
+def test_service_worker_precaches_nothing_that_knows_who_is_reading(client):
+    """Everything it stores is public: static assets and the offline notice."""
+    body = client.get(reverse("service_worker")).content.decode()
+    precache = re.search(r"var PRECACHE = \[(.*?)\];", body, re.S)
+    assert precache is not None
+    assert all(url.startswith("/static/") for url in re.findall(r'"([^"]+)"', precache.group(1)))
+
+
+def test_offline_notice_serves_anonymously(client):
+    """The worker caches it at install, before anyone has signed in."""
+    resp = client.get(reverse("offline"))
+    assert resp.status_code == 200
+    assert b"No connection" in resp.content
+
+
+def test_app_plumbing_is_reachable_midway_through_onboarding(client):
+    """OnboardingMiddleware sends unknown paths to the wizard, and an install
+    or a worker update must not be answered with a redirect to it."""
+    user = User.objects.create_user(email="halfway@example.com", password="pw12345!")
+    client.force_login(user)
+
+    for name in ("manifest", "service_worker", "offline"):
+        assert client.get(reverse(name)).status_code == 200
+
+
+def test_favicon_at_the_root_redirects_to_the_static_file(client):
+    """Browsers and crawlers ask for /favicon.ico whatever the <link> tags say."""
+    resp = client.get("/favicon.ico")
+    assert resp.status_code == 301
+    assert resp.url.endswith("/img/brand/favicon.ico")
 
 
 # ---------------------------------------------------------------- CSV importer

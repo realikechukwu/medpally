@@ -3,6 +3,13 @@
 
 {% block title %}{{ paper.title }} — {{ SITE_NAME }}{% endblock %}
 
+{# This is the page readers actually share, so the card a link preview builds #}
+{# should be about the paper rather than about the site.                      #}
+{% block og_type %}article{% endblock %}
+{% block og_title %}{{ paper.title }}{% endblock %}
+{% block og_description %}{{ paper.summary.finding }}{% endblock %}
+{% block meta_description %}{{ paper.summary.finding }}{% endblock %}
+
 {% block before_content %}
 {% if request.user.is_authenticated %}
 <a href="{% url 'feed:list' %}" class="back-btn" aria-label="Back to feed">

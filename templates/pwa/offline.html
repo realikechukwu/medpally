@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% comment %}
+  Served by the service worker when a navigation fails, so it is cached at
+  install time and must never contain anything about the reader.
+{% endcomment %}
+
+{% block title %}Offline — {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="empty-state">
+  <div class="empty-state-icon" aria-hidden="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 1l22 22M8.5 16.5a5 5 0 0 1 7 0M5 12.5a10 10 0 0 1 3.5-2.3M2 8.8a15 15 0 0 1 4-2.5M22 8.8a15 15 0 0 0-9.7-3.7M19 12.5a10 10 0 0 0-2.2-1.6"/><path d="M12 20h.01"/></svg>
+  </div>
+  <h2>No connection</h2>
+  <p>{{ SITE_NAME }} needs the network to load new papers. This page will work again as soon as you are back online.</p>
+  <p style="margin-top:18px"><a class="btn btn-soft btn-sm" href="{% url 'feed:list' %}">Try again</a></p>
+</div>
+{% endblock %}

@@ -26,6 +26,12 @@ ALLOWED_PREFIXES = (
     "/admin/",
     "/healthz",
     "/p/",
+    # Installed-app plumbing: redirecting these to the wizard would break
+    # installation and leave the service worker unable to update itself.
+    "/sw.js",
+    "/manifest.webmanifest",
+    "/offline/",
+    "/favicon.ico",
 )
 
 

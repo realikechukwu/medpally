@@ -4,7 +4,9 @@
       <input type="checkbox" id="drawer-toggle" class="drawer-toggle" aria-label="Open menu">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 9h16M4 15h16"/></svg>
     </label>
-    <a class="top-bar-brand" href="{% url 'feed:list' %}">{{ SITE_NAME }}</a>
+    <a class="top-bar-brand" href="{% url 'feed:list' %}">
+      <span class="brand-tile">{% include "_logo.html" %}</span>{{ SITE_NAME }}
+    </a>
     {% comment %}
       Filled from the page's <h1> by app.js, which fades it in once that heading
       scrolls under the bar. Pages without an <h1> set bar_title in the view.
@@ -16,7 +18,7 @@
 
 <label for="drawer-toggle" class="drawer-overlay" aria-hidden="true"></label>
 <aside class="drawer" aria-label="Menu">
-  <div class="drawer-brand">{{ SITE_NAME }}</div>
+  <div class="drawer-brand"><span class="brand-tile">{% include "_logo.html" %}</span>{{ SITE_NAME }}</div>
   <nav class="drawer-nav">
     <a data-tab-nav href="{% url 'feed:list' %}" class="drawer-link{% if active_tab == 'feed' %} is-active{% endif %}">
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/></svg>

@@ -91,6 +91,11 @@ h1, h2, h3 { color: var(--text); margin: 0 0 0.4em; }
   background: #E7F2EC; color: #1C5E3F; font-size: 14px; font-weight: 500;
   margin-bottom: 8px;
 }
+/* app.js takes the list away five seconds after it appears; this is the fade
+   on the way out. */
+.messages[data-autodismiss] { transition: opacity 0.4s ease; }
+.messages[data-autodismiss].is-dismissed { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .messages[data-autodismiss] { transition: none; } }
 
 /* ---------------------------------------------------------------- buttons */
 
@@ -159,6 +164,9 @@ input::placeholder { color: var(--text-muted); }
 .feed-menu-panel strong { margin-top: 10px; font-size: 12px; }
 .feed-menu-panel strong:first-child { margin-top: 0; }
 .card-badges { margin-left: auto; display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+/* The row is already pushed right; leaving the badges' own auto margin in
+   place would spread them apart from each other instead of grouping them. */
+.card-badges .badge { margin-left: 0; }
 .chip {
   display: inline-block; background: var(--chip-bg); color: var(--text-faint); padding: 10px 16px;
   border-radius: var(--radius-pill); font-size: 14px; font-weight: 600;
@@ -251,20 +259,34 @@ input::placeholder { color: var(--text-muted); }
 
 /* ---------------------------------------------------------------- welcome / landing */
 
+/* The hero is the whole page: no white gutter, no rounded corner, and it runs
+   under the notch and the home indicator rather than stopping at them. The
+   body carries the same colour so overscroll and the iOS status bar area do
+   not flash white either. */
+body.is-landing { background: var(--primary-dark); }
+.app-main.landing-flush { max-width: none; padding: 0; }
+
 .welcome-hero {
-  min-height: calc(100vh - 40px); display: flex; flex-direction: column;
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; align-items: center;
   background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
-  color: #fff; border-radius: var(--radius-card); padding: 56px 32px 40px; margin: -12px -4px 0;
-  box-sizing: border-box;
+  color: #fff;
+  padding:
+    calc(48px + env(safe-area-inset-top, 0px))
+    calc(24px + env(safe-area-inset-right, 0px))
+    calc(32px + env(safe-area-inset-bottom, 0px))
+    calc(24px + env(safe-area-inset-left, 0px));
 }
+.welcome-hero > * { width: 100%; max-width: 420px; }
 .welcome-hero .welcome-body {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 18px; text-align: center;
 }
 .welcome-mark {
   width: 64px; height: 64px; border-radius: 18px; background: rgba(255,255,255,0.12);
-  display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; color: #fff;
 }
+.welcome-mark .logo-glyph { width: 31px; }
 .welcome-hero h1 { font-size: 30px; font-weight: 700; margin: 0; color: #fff; }
 .welcome-hero .lede { font-size: 15px; line-height: 1.5; color: rgba(255,255,255,0.72); max-width: 340px; margin: 0 auto; }
 .welcome-hero ul { text-align: left; padding-left: 1.1rem; color: rgba(255,255,255,0.82); font-size: 14.5px; line-height: 1.6; }
@@ -496,8 +518,15 @@ input::placeholder { color: var(--text-muted); }
   letter-spacing: -0.02em; color: var(--text);
   transition: opacity 0.18s ease, visibility 0.18s ease;
 }
-.top-bar-brand { font-size: 17px; font-weight: 800; }
+.top-bar-brand { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
 .top-bar-brand:hover { color: var(--text); }
+/* The monogram on its brand tile, sized to sit on the cap height of the name
+   beside it. */
+.brand-tile {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 7px; background: var(--primary); color: #fff;
+}
+.brand-tile .logo-glyph { width: 11.5px; }
 .top-bar-title { font-size: 16px; font-weight: 700; opacity: 0; visibility: hidden; }
 .top-bar.is-collapsed .top-bar-brand { opacity: 0; visibility: hidden; }
 .top-bar.is-collapsed .top-bar-title { opacity: 1; visibility: visible; }
@@ -519,7 +548,10 @@ body:has(.drawer-toggle:checked) .drawer { transform: translateX(0); }
 body:has(.drawer-toggle:checked) .drawer-overlay { opacity: 1; pointer-events: auto; }
 body:has(.drawer-toggle:checked) { overflow: hidden; }
 
-.drawer-brand { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; padding: 0 12px 14px; }
+.drawer-brand {
+  font-size: 17px; font-weight: 800; letter-spacing: -0.02em; padding: 0 12px 14px;
+  display: flex; align-items: center; gap: 9px;
+}
 .drawer-nav { flex: 1; }
 .drawer-link {
   display: flex; align-items: center; gap: 14px; padding: 13px 12px;
@@ -568,6 +600,7 @@ body:has(.drawer-toggle:checked) { overflow: hidden; }
 
 .fineprint { color: var(--text-muted); font-size: 0.85rem; }
 .journal-cover { border-radius: 9px; }
+.logo-glyph { display: block; height: auto; }
 
 @media (max-width: 480px) {
   .app-main { padding: 12px 16px 32px; }
@@ -575,5 +608,4 @@ body:has(.drawer-toggle:checked) { overflow: hidden; }
   .feed-flush .page-header, .feed-flush .messages, .feed-flush .empty-state {
     padding-left: 16px; padding-right: 16px;
   }
-  .welcome-hero { margin: -12px 0 0; border-radius: 0; min-height: calc(100vh - 32px); }
 }

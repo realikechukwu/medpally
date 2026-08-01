@@ -13,9 +13,14 @@ apps/       Django product apps and management commands
 config/     Django settings and URL/WSGI configuration
 engine/     Framework-independent PubMed, relevance, classification, and AI logic
 templates/  Server-rendered Django templates
-static/     CSS, JavaScript, and vendored htmx
+static/     CSS, JavaScript, vendored htmx, and the brand artwork
 tests/      Unit, integration, and route-level tests
+tools/      Developer scripts that are not part of the running application
 ```
+
+The app icons, favicons, and Open Graph card in `static/img/brand/` are
+generated: run `python tools/brand_assets.py` after changing the monogram or
+the brand colour, and commit the result.
 
 Oracle Always Free deployment and Render cutover instructions are in
 [setuporacle.md](setuporacle.md).

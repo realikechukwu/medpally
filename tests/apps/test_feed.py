@@ -488,6 +488,27 @@ def test_new_divider_renders_once_not_per_card(client, user, circulation):
     assert resp.content.count(b"New since your last visit") == 1
 
 
+def test_a_trial_shows_one_design_badge_not_two(client, user, circulation):
+    """PubMed's is_rct flag and the summariser's study_type both say "RCT"."""
+    subscribe(user, circulation)
+    make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), is_rct=True)
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:list"))
+    assert resp.content.count(b'<span class="badge">RCT</span>') == 1
+
+
+def test_a_paper_that_is_not_a_trial_shows_the_summarisers_design(client, user, circulation):
+    subscribe(user, circulation)
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), is_rct=False)
+    PaperSummary.objects.filter(paper=paper).update(study_type="Meta-analysis")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:list"))
+    assert b'<span class="badge">Meta-analysis</span>' in resp.content
+    assert b'<span class="badge">RCT</span>' not in resp.content
+
+
 def test_read_later_paginates(client, user, circulation):
     subscribe(user, circulation)
     papers = [

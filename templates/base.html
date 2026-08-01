@@ -4,15 +4,40 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}The week's research from the journals you actually read, summarised into a few lines you can scan on the ward.{% endblock %}">
+
+  {# The bar the browser paints around the page: white everywhere except the #}
+  {# landing page, which is a full-bleed brand-coloured hero.                #}
+  <meta name="theme-color" content="{% block theme_color %}#FFFFFF{% endblock %}">
+
+  <link rel="manifest" href="{% url 'manifest' %}">
+  <link rel="icon" href="{% static 'img/brand/favicon.ico' %}" sizes="32x32">
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/brand/logo-mark.svg' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/brand/apple-touch-icon.png' %}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="{{ SITE_NAME }}">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <meta property="og:site_name" content="{{ SITE_NAME }}">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}{{ SITE_NAME }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}The week's research from the journals you actually read, summarised into a few lines you can scan on the ward.{% endblock %}">
+  <meta property="og:url" content="{{ SITE_BASE_URL }}{{ request.path }}">
+  <meta property="og:image" content="{{ SITE_BASE_URL }}{% static 'img/brand/og-image.png' %}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
 </head>
-<body{% if request.user.is_authenticated %} data-navigation-user="{{ request.user.pk }}"{% endif %}>
+<body class="{% block body_class %}{% endblock %}"{% if request.user.is_authenticated %} data-navigation-user="{{ request.user.pk }}"{% endif %}>
   {% if active_tab %}{% include "_top_bar.html" %}{% endif %}
   <main id="app-main" class="app-main{% if active_tab %} has-bottom-nav{% endif %}{% block content_class %}{% endblock %}" tabindex="-1">
     {% if messages %}
-    <ul class="messages">
+    <ul class="messages" data-autodismiss>
       {% for message in messages %}<li>{{ message }}</li>{% endfor %}
     </ul>
     {% endif %}

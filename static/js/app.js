@@ -79,6 +79,25 @@ function initJournalGroupToggles() {
   });
 }
 
+// A flash message is a receipt for something the reader just did, so it takes
+// itself away again instead of sitting under the feed for the rest of the
+// session.
+var MESSAGE_DISMISS_MS = 5000;
+var MESSAGE_FADE_MS = 400;
+
+function initFlashMessages() {
+  document.querySelectorAll(".messages[data-autodismiss]").forEach(function (list) {
+    if (list.dataset.dismissing) return;
+    list.dataset.dismissing = "true";
+    window.setTimeout(function () {
+      list.classList.add("is-dismissed");
+      window.setTimeout(function () {
+        list.remove();
+      }, MESSAGE_FADE_MS);
+    }, MESSAGE_DISMISS_MS);
+  });
+}
+
 function initFeedMenu() {
   if (window.medpallyFeedMenuInitialised) return;
   window.medpallyFeedMenuInitialised = true;
@@ -149,6 +168,17 @@ function saveCachedPage(url, page) {
   safeSessionSet(key, JSON.stringify(page));
 }
 
+// Flash messages are deliberately left out of the cache: "signed in as …"
+// reappearing on the way back to the feed reads like a second login.
+function cacheableMainMarkup(main) {
+  if (!main.querySelector(".messages")) return main.outerHTML;
+  var clone = main.cloneNode(true);
+  clone.querySelectorAll(".messages").forEach(function (list) {
+    list.remove();
+  });
+  return clone.outerHTML;
+}
+
 function pageFromDocument(pageDocument) {
   var main = pageDocument.getElementById("app-main");
   var bottomNav = pageDocument.getElementById("bottom-nav");
@@ -157,7 +187,7 @@ function pageFromDocument(pageDocument) {
   var drawerNav = pageDocument.querySelector(".drawer-nav");
   var barTitle = pageDocument.querySelector(".top-bar-title");
   return {
-    main: main.outerHTML,
+    main: cacheableMainMarkup(main),
     bottomNav: bottomNav.outerHTML,
     drawerNav: drawerNav ? drawerNav.innerHTML : "",
     barTitle: barTitle ? barTitle.textContent : "",
@@ -173,7 +203,7 @@ function snapshotCurrentPage() {
   var drawerNav = document.querySelector(".drawer-nav");
   var barTitle = document.querySelector(".top-bar-title");
   return {
-    main: main.outerHTML,
+    main: cacheableMainMarkup(main),
     bottomNav: bottomNav.outerHTML,
     drawerNav: drawerNav ? drawerNav.innerHTML : "",
     barTitle: barTitle ? barTitle.textContent : "",
@@ -199,6 +229,7 @@ function hydratePage() {
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initFlashMessages();
   if (window.htmx) window.htmx.process(document.getElementById("app-main"));
   document.dispatchEvent(new CustomEvent("medpally:page-change"));
 }
@@ -412,11 +443,23 @@ function initAuthSubmitLoading() {
   });
 }
 
+// The service worker is what makes MedPally installable, and it keeps an
+// offline notice to hand. Registration is best-effort: nothing on the page
+// waits on it, and a browser without support simply carries on.
+function initServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
+  });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
   initDrawer();
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initFlashMessages();
   initAuthSubmitLoading();
   initTabNavigation();
+  initServiceWorker();
 });

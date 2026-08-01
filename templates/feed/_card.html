@@ -12,7 +12,13 @@
       <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
       <div class="card-date">{{ paper.feed_date }}</div>
     </div>
-    <div class="card-badges">{% if paper.is_featured %}<span class="badge">★ Featured</span>{% endif %}{% if paper.is_rct %}<span class="badge">RCT</span>{% endif %}{% if paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}</div>
+    {% comment %}
+      One design badge per card. is_rct comes from PubMed's publication type
+      and study_type from the summariser, and on a trial both of them say
+      "RCT" — so the authoritative flag wins and the summariser's label is
+      only used for everything else.
+    {% endcomment %}
+    <div class="card-badges">{% if paper.is_featured %}<span class="badge">★ Featured</span>{% endif %}{% if paper.is_rct %}<span class="badge">RCT</span>{% elif paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}</div>
   </div>
 
   <h3><a href="{% url 'paper_detail' paper.pmid %}">{{ paper.title }}</a></h3>

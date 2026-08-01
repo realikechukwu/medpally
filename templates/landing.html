@@ -1,9 +1,17 @@
 {% extends "base.html" %}
 
+{% comment %}
+  The hero is the page here, edge to edge, so the browser chrome is told to
+  match it and the body class carries the same colour behind the scroll.
+{% endcomment %}
+{% block body_class %}is-landing{% endblock %}
+{% block content_class %} landing-flush{% endblock %}
+{% block theme_color %}#123A4D{% endblock %}
+
 {% block content %}
 <div class="welcome-hero">
   <div class="welcome-body">
-    <div class="welcome-mark">M</div>
+    <div class="welcome-mark">{% include "_logo.html" %}</div>
     <h1>{{ SITE_NAME }}</h1>
     <p class="lede">The week's research from the journals you actually read, summarised into a few lines you can scan on the ward.</p>
     <ul>

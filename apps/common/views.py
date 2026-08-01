@@ -1,7 +1,11 @@
+import hashlib
+
 from django.db import connection
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.templatetags.static import static
 from django.utils import timezone
+from django.views.decorators.cache import cache_control
 
 
 def landing(request: HttpRequest) -> HttpResponse:
@@ -15,6 +19,49 @@ def landing(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
         return redirect("feed:list")
     return render(request, "landing.html")
+
+
+# ---------------------------------------------------------------- installable app
+
+# Kept in step with the PRECACHE list in templates/pwa/sw.js.
+PRECACHED_ASSETS = ("css/app.css", "js/app.js", "js/htmx.min.js")
+
+
+def manifest(request: HttpRequest) -> HttpResponse:
+    """The web app manifest, rendered so icon URLs survive static hashing."""
+    return render(
+        request,
+        "pwa/manifest.webmanifest",
+        content_type="application/manifest+json",
+    )
+
+
+@cache_control(no_cache=True, max_age=0)
+def service_worker(request: HttpRequest) -> HttpResponse:
+    """The service worker, which has to be served from the root to scope to it.
+
+    Its cache name is derived from the hashed URLs of everything it precaches,
+    so a deploy that changes any of them retires the old cache by itself.
+    """
+    fingerprint = hashlib.sha256(
+        "".join(static(path) for path in PRECACHED_ASSETS).encode()
+    ).hexdigest()[:12]
+    return render(
+        request,
+        "pwa/sw.js",
+        {"cache_version": fingerprint},
+        content_type="text/javascript",
+    )
+
+
+def offline(request: HttpRequest) -> HttpResponse:
+    """The page the service worker serves when a navigation cannot reach us."""
+    return render(request, "pwa/offline.html")
+
+
+def favicon(request: HttpRequest) -> HttpResponse:
+    """Browsers and crawlers ask for /favicon.ico regardless of our <link> tags."""
+    return redirect(static("img/brand/favicon.ico"), permanent=True)
 
 
 def healthz(request: HttpRequest) -> JsonResponse:
