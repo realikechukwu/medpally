@@ -11,7 +11,11 @@ def initials(full_name: str, email: str) -> str:
 
 
 def site(request: HttpRequest) -> dict[str, str]:
-    context = {"SITE_NAME": settings.SITE_NAME, "SITE_BASE_URL": settings.SITE_BASE_URL}
+    context = {
+        "SITE_NAME": settings.SITE_NAME,
+        "SITE_BASE_URL": settings.SITE_BASE_URL,
+        "MARKETING_BASE_URL": settings.MARKETING_BASE_URL,
+    }
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
         profile = getattr(user, "profile", None)

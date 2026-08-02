@@ -1,0 +1,80 @@
+{% extends "marketing/base.html" %}
+
+{% block content %}
+<section class="marketing-hero">
+  <div class="marketing-shell marketing-hero-grid">
+    <div class="marketing-hero-copy">
+      <p class="marketing-eyebrow">Medical literature, made easier to follow</p>
+      <h1>Keep up with the research that matters to your practice.</h1>
+      <p class="marketing-lede">Choose your specialty and journals. MedPally turns new PubMed abstracts into concise summaries you can scan, save and revisit.</p>
+      <div class="marketing-actions">
+        <a class="btn marketing-primary-btn" href="{{ SITE_BASE_URL }}/accounts/signup/">Create a free account</a>
+        <a class="marketing-text-link" href="{{ SITE_BASE_URL }}/accounts/login/">Open MedPally <span aria-hidden="true">→</span></a>
+      </div>
+      <p class="marketing-beta-note">Free while in beta.</p>
+    </div>
+
+    <div class="marketing-preview" aria-label="Example of a MedPally summary">
+      <div class="marketing-preview-source">
+        <span class="marketing-preview-mark">M</span>
+        <span>
+          <strong>Your journal feed</strong>
+          <small>Matched to your specialty</small>
+        </span>
+        <span class="marketing-preview-badge">New</span>
+      </div>
+      <h2>A clearer way to scan a new paper</h2>
+      <dl>
+        <div><dt>Context</dt><dd>The clinical question and why it matters.</dd></div>
+        <div><dt>Finding</dt><dd>The primary result, kept concise and specific.</dd></div>
+        <div><dt>So what</dt><dd>The possible relevance to clinical practice.</dd></div>
+      </dl>
+      <p>AI-generated from the PubMed abstract. Verify important details in the original abstract and full paper.</p>
+    </div>
+  </div>
+</section>
+
+<section class="marketing-section" aria-labelledby="how-it-works">
+  <div class="marketing-shell">
+    <p class="marketing-section-kicker">Simple by design</p>
+    <h2 id="how-it-works">Your reading list, without the noise.</h2>
+    <div class="marketing-steps">
+      <article>
+        <span>01</span>
+        <h3>Choose what matters</h3>
+        <p>Pick your specialty, then add or remove journals whenever you like.</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h3>Scan new research</h3>
+        <p>Newly indexed papers arrive with short, structured summaries.</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h3>Keep the useful ones</h3>
+        <p>Save papers for later and search your selected journals in one place.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="marketing-trust">
+  <div class="marketing-shell marketing-trust-inner">
+    <div>
+      <p class="marketing-section-kicker">Source first, AI assisted</p>
+      <h2>Short summaries. Original sources always close by.</h2>
+    </div>
+    <div>
+      <p>MedPally summarises publication information and abstracts retrieved from PubMed. Every paper links back to its PubMed record so you can inspect the source and continue to the full publication.</p>
+      <a class="marketing-text-link" href="/ai-summaries/">How AI summarisation works <span aria-hidden="true">→</span></a>
+    </div>
+  </div>
+</section>
+
+<section class="marketing-final-cta">
+  <div class="marketing-shell">
+    <h2>Spend less time finding papers.<br>More time reading the right ones.</h2>
+    <a class="btn marketing-primary-btn" href="{{ SITE_BASE_URL }}/accounts/signup/">Start with your specialty</a>
+  </div>
+</section>
+{% endblock %}

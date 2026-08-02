@@ -11,11 +11,21 @@ DEBUG = False
 # No default: a missing SECRET_KEY or ALLOWED_HOSTS in production must crash at
 # import, not silently fall back to the insecure dev value.
 SECRET_KEY = env("DJANGO_SECRET_KEY")
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
-CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
-
-if not ALLOWED_HOSTS:
+_app_allowed_hosts = env.list("DJANGO_ALLOWED_HOSTS", default=[])
+if not _app_allowed_hosts:
     raise RuntimeError("Set DJANGO_ALLOWED_HOSTS — refusing to start with an empty host allowlist.")
+
+ALLOWED_HOSTS = sorted(
+    set(_app_allowed_hosts) | {"web.medpally.com", "medpally.com", "www.medpally.com"}
+)
+CSRF_TRUSTED_ORIGINS = sorted(
+    set(env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[]))
+    | {
+        "https://web.medpally.com",
+        "https://medpally.com",
+        "https://www.medpally.com",
+    }
+)
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = True

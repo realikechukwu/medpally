@@ -146,10 +146,18 @@ For the temporary test deployment set:
 
 ```dotenv
 DOMAIN=oracle-test.medpally.com
-DJANGO_ALLOWED_HOSTS=oracle-test.medpally.com
-DJANGO_CSRF_TRUSTED_ORIGINS=https://oracle-test.medpally.com
+DJANGO_ALLOWED_HOSTS=oracle-test.medpally.com,web.medpally.com,medpally.com,www.medpally.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://oracle-test.medpally.com,https://web.medpally.com,https://medpally.com,https://www.medpally.com
 SITE_BASE_URL=https://oracle-test.medpally.com
+MARKETING_BASE_URL=https://web.medpally.com
+MARKETING_HOSTS=web.medpally.com,medpally.com,www.medpally.com
 ```
+
+The marketing site is served by the same Caddy and Django containers at
+`web.medpally.com`, but it uses a separate public-only URL map. Add
+`web.medpally.com`, `medpally.com`, and `www.medpally.com` to
+`DJANGO_ALLOWED_HOSTS`; the apex and `www` names are already recognised as
+future marketing hosts, even before they are added to Caddy and DNS.
 
 Important environment details:
 
@@ -159,6 +167,8 @@ Important environment details:
 - Keep `DB_CONN_MAX_AGE=0`; the free Supabase session pool has limited slots.
 - `DJANGO_ALLOWED_HOSTS` is a comma-separated hostname list with no scheme.
 - `DJANGO_CSRF_TRUSTED_ORIGINS` contains full HTTPS origins.
+- `SITE_BASE_URL` remains the application origin used by login, signup and
+  shared-paper links; `MARKETING_BASE_URL` is the canonical public-site origin.
 - Never commit `deploy/oracle/.env`; it is ignored by Git.
 
 ## 7. Build and start the test deployment

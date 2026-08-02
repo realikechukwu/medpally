@@ -45,6 +45,8 @@ class OnboardingMiddleware:
         return self.get_response(request)
 
     def _should_redirect(self, request: HttpRequest) -> bool:
+        if getattr(request, "is_marketing_site", False):
+            return False
         if not request.user.is_authenticated:
             return False
         if request.path.startswith(ALLOWED_PREFIXES):

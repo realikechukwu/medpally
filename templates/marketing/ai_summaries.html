@@ -1,0 +1,42 @@
+{% extends "marketing/base.html" %}
+
+{% block title %}AI summarisation — MedPally{% endblock %}
+{% block meta_description %}How MedPally uses AI to create concise summaries from PubMed abstracts, and the limits readers should understand.{% endblock %}
+{% block og_title %}How MedPally uses AI{% endblock %}
+{% block og_description %}How MedPally creates concise summaries from PubMed abstracts and keeps readers connected to the original source.{% endblock %}
+
+{% block content %}
+<article class="marketing-document marketing-shell">
+  <header>
+    <p class="marketing-eyebrow">Transparency</p>
+    <h1>How AI summarisation works</h1>
+    <p class="marketing-document-intro">MedPally uses AI to make new research easier to scan—not to replace the source publication.</p>
+  </header>
+
+  <section>
+    <h2>What the summary uses</h2>
+    <p>MedPally retrieves the paper title, journal, publication date, publication type and abstract from PubMed. Those publication details, the abstract and a specialty label are provided to the AI summarisation service.</p>
+    <p>Account details, reading activity, saved papers and journal preferences are not included in the summarisation request.</p>
+  </section>
+
+  <section>
+    <h2>What MedPally produces</h2>
+    <p>Each summary follows the same short structure: study type, clinical context, principal finding, possible relevance and a small set of topic tags. The system is instructed to use only information supplied from the PubMed record and to mark details that are not reported.</p>
+  </section>
+
+  <section>
+    <h2>Important limitations</h2>
+    <p>Abstracts are condensed accounts of research, and AI-generated text can omit context, misunderstand a result or reproduce an error in the source record. A summary may not reflect details that appear only in the full paper.</p>
+    <p class="marketing-disclosure">AI-generated from the PubMed abstract. Verify important details in the original abstract and full paper.</p>
+  </section>
+
+  <section>
+    <h2>Clinical use</h2>
+    <p>MedPally is an information and discovery tool. Its summaries are not medical advice and should not be used alone to make clinical decisions. Readers remain responsible for checking the original publication and applying appropriate professional judgement.</p>
+  </section>
+
+  <div class="marketing-document-cta">
+    <a class="btn marketing-primary-btn" href="{{ SITE_BASE_URL }}/accounts/signup/">Try MedPally</a>
+  </div>
+</article>
+{% endblock %}

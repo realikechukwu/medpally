@@ -1,4 +1,4 @@
-{$DOMAIN}, {$TEST_DOMAIN} {
+{$DOMAIN}, {$TEST_DOMAIN}, web.medpally.com {
     encode zstd gzip
     reverse_proxy web:8000
 

@@ -21,6 +21,13 @@ CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
 SITE_NAME = env("SITE_NAME", default="MedPally")
 SITE_BASE_URL = env("SITE_BASE_URL", default="http://localhost:8000")
+MARKETING_BASE_URL = env("MARKETING_BASE_URL", default="https://web.medpally.com")
+MARKETING_HOSTS = frozenset(
+    env.list(
+        "MARKETING_HOSTS",
+        default=["web.medpally.com", "medpally.com", "www.medpally.com"],
+    )
+)
 SITE_ID = 1
 
 # ---------------------------------------------------------------- apps
@@ -63,6 +70,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "apps.common.middleware.MarketingSiteMiddleware",
     "apps.accounts.middleware.OnboardingMiddleware",
 ]
 

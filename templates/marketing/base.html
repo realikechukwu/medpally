@@ -1,0 +1,54 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MedPally — Medical research, easier to follow{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}A personalised feed of concise medical research summaries from the journals that matter to your practice.{% endblock %}">
+  <meta name="theme-color" content="#123A4D">
+  <link rel="canonical" href="{{ MARKETING_BASE_URL }}{{ request.path }}">
+
+  <meta property="og:site_name" content="{{ SITE_NAME }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{% block og_title %}MedPally — Medical research, easier to follow{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}A personalised feed of concise medical research summaries from the journals that matter to your practice.{% endblock %}">
+  <meta property="og:url" content="{{ MARKETING_BASE_URL }}{{ request.path }}">
+  <meta property="og:image" content="{{ MARKETING_BASE_URL }}{% static 'img/brand/marketing-og.png' %}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="{% static 'img/brand/favicon.ico' %}" sizes="32x32">
+  <link rel="icon" type="image/svg+xml" href="{% static 'img/brand/logo-mark.svg' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/brand/apple-touch-icon.png' %}">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="marketing-body">
+  <header class="marketing-header">
+    <div class="marketing-shell marketing-header-inner">
+      <a class="marketing-brand" href="/" aria-label="MedPally home">
+        <span class="brand-tile">{% include "_logo.html" %}</span>
+        <span>{{ SITE_NAME }}</span>
+      </a>
+      <nav class="marketing-nav" aria-label="Primary navigation">
+        <a href="/ai-summaries/">AI summaries</a>
+        <a href="{{ SITE_BASE_URL }}/accounts/login/">Sign in</a>
+        <a class="marketing-nav-cta" href="{{ SITE_BASE_URL }}/accounts/signup/">Get started</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="marketing-footer">
+    <div class="marketing-shell marketing-footer-inner">
+      <span>&copy; {% now "Y" %} {{ SITE_NAME }}</span>
+      <nav class="marketing-footer-links" aria-label="Legal and information">
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/ai-summaries/">AI summarisation</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -21,6 +21,55 @@ def landing(request: HttpRequest) -> HttpResponse:
     return render(request, "landing.html")
 
 
+# ---------------------------------------------------------------- public marketing site
+
+
+@cache_control(public=True, max_age=300)
+def marketing_home(request: HttpRequest) -> HttpResponse:
+    return render(request, "marketing/home.html")
+
+
+@cache_control(public=True, max_age=300)
+def marketing_privacy(request: HttpRequest) -> HttpResponse:
+    return render(request, "marketing/privacy.html")
+
+
+@cache_control(public=True, max_age=300)
+def marketing_terms(request: HttpRequest) -> HttpResponse:
+    return render(request, "marketing/terms.html")
+
+
+@cache_control(public=True, max_age=300)
+def marketing_ai_summaries(request: HttpRequest) -> HttpResponse:
+    return render(request, "marketing/ai_summaries.html")
+
+
+@cache_control(public=True, max_age=3600)
+def marketing_robots(request: HttpRequest) -> HttpResponse:
+    base_url = f"{request.scheme}://{request.get_host()}"
+    body = f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n"
+    return HttpResponse(body, content_type="text/plain")
+
+
+@cache_control(public=True, max_age=3600)
+def marketing_sitemap(request: HttpRequest) -> HttpResponse:
+    base_url = f"{request.scheme}://{request.get_host()}"
+    return render(
+        request,
+        "marketing/sitemap.xml",
+        {"base_url": base_url},
+        content_type="application/xml",
+    )
+
+
+def marketing_not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
+    return render(request, "marketing/404.html", status=404)
+
+
+def marketing_server_error(request: HttpRequest) -> HttpResponse:
+    return render(request, "marketing/500.html", status=500)
+
+
 # ---------------------------------------------------------------- installable app
 
 # Kept in step with the PRECACHE list in templates/pwa/sw.js.
