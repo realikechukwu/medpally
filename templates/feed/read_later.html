@@ -5,6 +5,14 @@
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">Saved</h1>
+  <div class="chip-row collection-tabs" aria-label="Saved paper collections">
+    <a class="pill-tab{% if collection == 'saved' %} pill-tab-active{% endif %}"
+      {% if collection == 'saved' %}aria-current="page"{% endif %}
+      href="{% url 'feed:read_later' %}">Saved</a>
+    <a class="pill-tab{% if collection == 'liked' %} pill-tab-active{% endif %}"
+      {% if collection == 'liked' %}aria-current="page"{% endif %}
+      href="{% url 'feed:liked' %}">Liked</a>
+  </div>
 </div>
 <div id="cards">
   {% include "feed/_cards.html" %}

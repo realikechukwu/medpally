@@ -10,7 +10,11 @@
   {% if is_first_page %}
   <div class="empty-state">
     <div class="empty-state-icon">
+      {% if empty_icon == "liked" %}
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>
+      {% else %}
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+      {% endif %}
     </div>
     <h2>{{ empty_title|default:"Nothing saved yet" }}</h2>
     <p>{{ empty_body|default:"Tap the bookmark on any paper to keep it here." }}</p>

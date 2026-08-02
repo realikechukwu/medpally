@@ -320,24 +320,25 @@ def group_by_week(
     return groups
 
 
-# ---------------------------------------------------------------- read later
+# ---------------------------------------------------------------- saved / liked collections
 #
-# Read Later sorts by when you saved it, not by feed_date, so it needs its own
-# cursor. Same keyset reasoning as the feed: saves arrive while you're reading.
+# These collections sort by the moment the reader acted, not by feed_date, so
+# they need their own cursors. Same keyset reasoning as the feed: saves and
+# likes arrive while you're reading.
 
 
 @dataclass(slots=True)
-class SavedPage:
+class CollectionPage:
     states: list[UserPaperState]
     next_cursor: str | None
 
 
-def _encode_saved_cursor(state: UserPaperState) -> str:
-    payload = [state.saved_at.isoformat(), state.paper_id]
+def _encode_collection_cursor(state: UserPaperState, timestamp_field: str) -> str:
+    payload = [getattr(state, timestamp_field).isoformat(), state.paper_id]
     return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
 
 
-def _decode_saved_cursor(raw: str) -> tuple[datetime, int] | None:
+def _decode_collection_cursor(raw: str) -> tuple[datetime, int] | None:
     try:
         saved_at_str, paper_id = json.loads(base64.urlsafe_b64decode(raw.encode()).decode())
         return datetime.fromisoformat(saved_at_str), int(paper_id)
@@ -345,26 +346,54 @@ def _decode_saved_cursor(raw: str) -> tuple[datetime, int] | None:
         return None
 
 
-def get_saved_page(
-    user: User, *, cursor: str | None = None, page_size: int | None = None
-) -> SavedPage:
+def _get_collection_page(
+    user: User,
+    *,
+    timestamp_field: str,
+    cursor: str | None = None,
+    page_size: int | None = None,
+) -> CollectionPage:
+    if timestamp_field not in {"saved_at", "liked_at"}:
+        raise ValueError(f"Unsupported paper collection: {timestamp_field}")
+
     page_size = page_size or settings.FEED_PAGE_SIZE
     qs = (
-        UserPaperState.objects.filter(user=user, saved_at__isnull=False)
+        UserPaperState.objects.filter(user=user, **{f"{timestamp_field}__isnull": False})
         .select_related("paper", "paper__journal", "paper__summary")
-        .order_by("-saved_at", "-paper_id")
+        .order_by(f"-{timestamp_field}", "-paper_id")
     )
 
-    decoded = _decode_saved_cursor(cursor) if cursor else None
+    decoded = _decode_collection_cursor(cursor) if cursor else None
     if decoded is not None:
-        saved_at, paper_id = decoded
-        qs = qs.filter(Q(saved_at__lt=saved_at) | Q(saved_at=saved_at, paper_id__lt=paper_id))
+        acted_at, paper_id = decoded
+        qs = qs.filter(
+            Q(**{f"{timestamp_field}__lt": acted_at})
+            | Q(**{timestamp_field: acted_at, "paper_id__lt": paper_id})
+        )
 
     states = list(qs[: page_size + 1])
     has_next = len(states) > page_size
     states = states[:page_size]
-    next_cursor = _encode_saved_cursor(states[-1]) if has_next and states else None
-    return SavedPage(states=states, next_cursor=next_cursor)
+    next_cursor = (
+        _encode_collection_cursor(states[-1], timestamp_field) if has_next and states else None
+    )
+    return CollectionPage(states=states, next_cursor=next_cursor)
+
+
+def get_saved_page(
+    user: User, *, cursor: str | None = None, page_size: int | None = None
+) -> CollectionPage:
+    return _get_collection_page(
+        user, timestamp_field="saved_at", cursor=cursor, page_size=page_size
+    )
+
+
+def get_liked_page(
+    user: User, *, cursor: str | None = None, page_size: int | None = None
+) -> CollectionPage:
+    return _get_collection_page(
+        user, timestamp_field="liked_at", cursor=cursor, page_size=page_size
+    )
 
 
 def get_recent_searches(user: User, *, limit: int = 6) -> list[UserPaperState]:

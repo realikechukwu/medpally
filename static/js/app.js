@@ -117,7 +117,7 @@ function initFeedMenu() {
 // JavaScript is unavailable, while signed-in readers get instant, cached swaps
 // of the content area.  We deliberately use sessionStorage, not a shared HTTP
 // cache: every page contains a reader's personalised feed and saved papers.
-var NAVIGATION_CACHE_VERSION = "v1";
+var NAVIGATION_CACHE_VERSION = "v2";
 var NAVIGATION_CACHE_TTL_MS = 5 * 60 * 1000;
 var navigationRequest;
 
@@ -351,6 +351,7 @@ function invalidateCachedTabs(tabNames) {
   var paths = {
     feed: "/feed/",
     saved: "/feed/read-later/",
+    liked: "/feed/liked/",
     account: "/account/",
   };
   var prefix = "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":";

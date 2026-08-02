@@ -678,6 +678,47 @@ def test_the_saved_list_renders_without_week_headings(client, user, circulation)
     assert b"data-week=" not in resp.content
 
 
+def test_saved_area_has_saved_and_liked_subtabs(client, user):
+    client.force_login(user)
+
+    saved = client.get(reverse("feed:read_later"))
+    liked = client.get(reverse("feed:liked"))
+
+    assert saved.status_code == 200
+    assert liked.status_code == 200
+    assert b'href="/feed/read-later/"' in saved.content
+    assert b'href="/feed/liked/"' in saved.content
+    assert saved.content.count(b"pill-tab pill-tab-active") == 1
+    assert liked.content.count(b"pill-tab pill-tab-active") == 1
+    assert saved.content.count(b'aria-current="page"') == 1
+    assert liked.content.count(b'aria-current="page"') == 1
+
+
+def test_liked_subtab_shows_liked_papers_not_merely_saved_papers(client, user, circulation):
+    liked = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), title="Liked paper")
+    saved_only = make_paper(
+        "2", journal=circulation, feed_date=date(2026, 7, 20), title="Saved only paper"
+    )
+    UserPaperState.objects.create(user=user, paper=liked, liked_at="2026-07-21T12:00:00Z")
+    UserPaperState.objects.create(user=user, paper=saved_only, saved_at="2026-07-21T13:00:00Z")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:liked"))
+
+    assert b"Liked paper" in resp.content
+    assert b"Saved only paper" not in resp.content
+    assert b"week-header" not in resp.content
+
+
+def test_empty_liked_subtab_has_a_liked_specific_empty_state(client, user):
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:liked"))
+
+    assert b"No liked papers yet" in resp.content
+    assert b"Tap the heart on any paper and it will appear here." in resp.content
+
+
 def test_a_later_empty_page_does_not_inject_an_empty_state(client, user, circulation):
     """The sentinel replaces itself, so a stray empty state would land mid-feed."""
     subscribe(user, circulation)
@@ -738,6 +779,10 @@ def test_toggle_like(client, user, circulation):
     client.force_login(user)
     client.post(reverse("feed:toggle_like", args=[paper.pmid]))
     assert UserPaperState.objects.get(paper=paper).liked_at is not None
+
+    liked = client.get(reverse("feed:liked"))
+    assert b"Paper 1" in liked.content
+    assert b'data-cache-invalidate="feed liked"' in liked.content
 
 
 def test_dismiss_removes_paper_from_feed(client, user, circulation):
@@ -1042,3 +1087,38 @@ def test_read_later_paginates(client, user, circulation):
         cursor = page.next_cursor
 
     assert seen == {p.id for p in papers}
+
+
+def test_liked_papers_paginate(client, user, circulation):
+    papers = [
+        make_paper(str(i), journal=circulation, feed_date=date(2026, 7, 20)) for i in range(7)
+    ]
+    for index, paper in enumerate(papers):
+        UserPaperState.objects.create(
+            user=user, paper=paper, liked_at=f"2026-07-21T12:{index:02d}:00Z"
+        )
+
+    seen: set[int] = set()
+    cursor = None
+    for _ in range(10):
+        page = services.get_liked_page(user, cursor=cursor, page_size=3)
+        seen.update(s.paper_id for s in page.states)
+        if not page.next_cursor:
+            break
+        cursor = page.next_cursor
+
+    assert seen == {p.id for p in papers}
+
+
+def test_liked_view_pagination_fetches_the_liked_route(client, user, circulation):
+    for index in range(2):
+        paper = make_paper(str(index), journal=circulation, feed_date=date(2026, 7, 20))
+        UserPaperState.objects.create(
+            user=user, paper=paper, liked_at=f"2026-07-21T12:0{index}:00Z"
+        )
+    client.force_login(user)
+
+    with override_settings(FEED_PAGE_SIZE=1):
+        resp = client.get(reverse("feed:liked"))
+
+    assert b'hx-get="/feed/liked/?cursor=' in resp.content

@@ -128,19 +128,40 @@ def feed_list(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def read_later(request: HttpRequest) -> HttpResponse:
+    return _paper_collection(request, collection="saved")
+
+
+@login_required
+def liked(request: HttpRequest) -> HttpResponse:
+    return _paper_collection(request, collection="liked")
+
+
+def _paper_collection(request: HttpRequest, *, collection: str) -> HttpResponse:
     cursor = request.GET.get("cursor") or None
-    page = services.get_saved_page(request.user, cursor=cursor)
+    if collection == "liked":
+        page = services.get_liked_page(request.user, cursor=cursor)
+        next_url_name = "feed:liked"
+        empty_title = "No liked papers yet"
+        empty_body = "Tap the heart on any paper and it will appear here."
+    else:
+        page = services.get_saved_page(request.user, cursor=cursor)
+        next_url_name = "feed:read_later"
+        empty_title = "Nothing saved yet"
+        empty_body = "Tap the bookmark on any paper to keep it here."
+
     cards = [{"paper": s.paper, "state": s, "is_new": False} for s in page.states]
-    # Saved is ordered by when you saved a paper, not when it published, so week
-    # headings keyed on feed_date would run out of order here. One open,
-    # unlabelled group keeps the template to a single code path until Saved
-    # grows big enough to want grouping on its own axis.
+    # Collections are ordered by when the reader acted, not when the paper was
+    # published, so feed-date week headings would run out of order here.
     groups = [{"week_start": None, "show_header": False, "is_open": True, "cards": cards}]
     context = {
         "groups": groups if cards else [],
         "next_cursor": page.next_cursor,
-        "next_url_name": "feed:read_later",
+        "next_url_name": next_url_name,
         "active_tab": "saved",
+        "collection": collection,
+        "empty_title": empty_title,
+        "empty_body": empty_body,
+        "empty_icon": collection,
         "more_trigger": "revealed",
         "is_first_page": not cursor,
     }
