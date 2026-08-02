@@ -163,10 +163,19 @@ input::placeholder { color: var(--text-muted); }
 .feed-menu-panel strong, .feed-menu-panel a { display: block; margin: 5px 0; }
 .feed-menu-panel strong { margin-top: 10px; font-size: 12px; }
 .feed-menu-panel strong:first-child { margin-top: 0; }
-.card-badges { margin-left: auto; display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+/* nowrap so the star stays beside the design badge instead of dropping under
+   it — a two-word label like "Prospective cohort" wraps inside its own box
+   rather than pushing the star onto a second row. */
+.card-badges { margin-left: auto; display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; justify-content: flex-end; }
 /* The row is already pushed right; leaving the badges' own auto margin in
    place would spread them apart from each other instead of grouping them. */
 .card-badges .badge { margin-left: 0; }
+/* Featured repeats on every pick, so it's a mark rather than a second word
+   badge — the design label is what the eye is actually scanning for. Same
+   colour as the active Featured pill, so the tab and its marks read as one. */
+.featured-star {
+  display: inline-flex; align-items: center; flex-shrink: 0; color: var(--primary);
+}
 .chip {
   display: inline-block; background: var(--chip-bg); color: var(--text-faint); padding: 10px 16px;
   border-radius: var(--radius-pill); font-size: 14px; font-weight: 600;
@@ -220,7 +229,7 @@ input::placeholder { color: var(--text-muted); }
 .card-journal { font-size: 13px; font-weight: 600; color: var(--text); }
 .card-date { font-size: 12px; color: var(--text-muted); }
 .badge {
-  margin-left: auto; background: var(--rct); color: #fff; font-size: 11px; font-weight: 700;
+  margin-left: auto; background: var(--rct); color: #fff; font-size: 10px; font-weight: 700;
   padding: 4px 9px; border-radius: 6px; letter-spacing: 0.02em;
 }
 .new-divider { color: var(--accent); font-size: 12px; font-weight: 700; margin-bottom: 8px;
@@ -487,6 +496,11 @@ body.is-landing { background: var(--primary-dark); }
 }
 .empty-state h2 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
 .empty-state p { font-size: 13.5px; color: var(--text-muted); line-height: 1.5; max-width: 260px; margin: 0 auto; }
+.empty-state-action {
+  margin-top: 16px; padding: 9px 18px; border-radius: var(--radius-pill);
+  background: var(--chip-bg); color: var(--accent); font-size: 13.5px; font-weight: 600;
+}
+.empty-state-action:hover { background: var(--border); color: var(--accent-dark); }
 
 /* ---------------------------------------------------------------- top bar + drawer */
 

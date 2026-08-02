@@ -1,16 +1,52 @@
 name: Weekly featured
 
+# Runs after Monday's nightly ingestion (03:00 UTC), because the week it scores
+# is the one that just finished: gather_candidates takes papers with a feed_date
+# in the seven days before week_start.
+#
+# This needs the same production environment as nightly.yml. Without it
+# manage.py falls back to its own DJANGO_SETTINGS_MODULE default
+# (config.settings.local) and the base DATABASE_URL default (localhost:5433),
+# so the job either fails to connect or writes FeaturedPaper rows to a database
+# nobody reads. Either way the Featured tab stays empty.
 on:
   schedule:
     - cron: "0 5 * * 1"
   workflow_dispatch:
 
+concurrency:
+  group: weekly-featured
+  cancel-in-progress: false
+
 jobs:
   select:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+      # No HTTP is served here, but production settings refuse to import
+      # without a host allowlist.
+      DJANGO_ALLOWED_HOSTS: localhost
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DB_CONN_MAX_AGE: "0"
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
       - run: uv sync --frozen
-      - run: uv run python manage.py migrate --noinput
-      - run: uv run python manage.py select_featured
+
+      # No migrate step: deploy/oracle/start.sh migrates on deploy. Migrating
+      # from here would apply whatever is on main to a database still serving
+      # the previously deployed image.
+      #
+      # --explain puts each pick's score breakdown in the run log, which is the
+      # only place to see why a specialty came back with nothing.
+      - name: Select this week's featured papers
+        run: uv run python manage.py select_featured --explain

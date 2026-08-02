@@ -7,5 +7,8 @@
     </div>
     <h2>{{ empty_title|default:"Nothing saved yet" }}</h2>
     <p>{{ empty_body|default:"Tap the bookmark on any paper to keep it here." }}</p>
+    {% if empty_action_url %}
+      <a class="empty-state-action" href="{{ empty_action_url }}">{{ empty_action_label }}</a>
+    {% endif %}
   </div>
 {% endfor %}

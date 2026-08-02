@@ -18,7 +18,7 @@
       "RCT" — so the authoritative flag wins and the summariser's label is
       only used for everything else.
     {% endcomment %}
-    <div class="card-badges">{% if paper.is_featured %}<span class="badge">★ Featured</span>{% endif %}{% if paper.is_rct %}<span class="badge">RCT</span>{% elif paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}</div>
+    <div class="card-badges">{% if paper.is_featured %}<span class="featured-star" role="img" aria-label="Featured this week"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.16l-5.7 3l1.09-6.35l-4.62-4.5l6.38-.93z"/></svg></span>{% endif %}{% if paper.is_rct %}<span class="badge">RCT</span>{% elif paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}</div>
   </div>
 
   <h3><a href="{% url 'paper_detail' paper.pmid %}">{{ paper.title }}</a></h3>

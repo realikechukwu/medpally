@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -16,6 +17,49 @@ from .models import UserPaperState
 
 def _is_htmx(request: HttpRequest) -> bool:
     return request.headers.get("HX-Request") == "true"
+
+
+def _empty_state(filters: FeedFilters, profile) -> dict[str, str]:
+    """Copy for a feed tab that came back with nothing.
+
+    An empty tab is the only screen some readers see on day one, so it has to
+    say what this tab is for and what to do next — in the reader's terms, not
+    the pipeline's. Each tab fills up for a different reason and on a different
+    schedule, so each gets its own wording rather than one shared apology.
+    """
+    if filters.tab == "featured":
+        if not profile.specialty_id:
+            return {
+                "empty_title": "Tell us your specialty",
+                "empty_body": "Featured picks are chosen one specialty at a time. "
+                "Add yours and this tab fills up.",
+                "empty_action_url": reverse("accounts:settings_profile"),
+                "empty_action_label": "Choose your specialty",
+            }
+        return {
+            "empty_title": "No featured picks yet",
+            "empty_body": f"Every Monday we pick the strongest new {profile.specialty.name} "
+            "studies. More journals on your list means more to choose from.",
+            "empty_action_url": reverse("accounts:settings_journals"),
+            "empty_action_label": "Add journals",
+        }
+    if filters.tab == "unseen":
+        return {
+            "empty_title": "You're all caught up",
+            "empty_body": "You've opened every paper in your feed. New ones land each day.",
+        }
+    if filters.design:
+        return {
+            "empty_title": "Nothing matches this filter",
+            "empty_body": "No papers of this study design in your feed right now. "
+            "Switch back to Any design to see everything.",
+        }
+    return {
+        "empty_title": "Your feed is empty",
+        "empty_body": "New papers land each day. Adding more journals fills it out faster.",
+        "empty_action_url": reverse("accounts:settings_journals"),
+        "empty_action_label": "Add journals",
+    }
 
 
 @login_required
@@ -55,12 +99,7 @@ def feed_list(request: HttpRequest) -> HttpResponse:
         "filters": filters,
         "next_url_name": "feed:list",
         "active_tab": "feed",
-        "empty_title": "Pick a specialty to see this week's top papers"
-        if filters.tab == "featured" and not profile.specialty_id
-        else "No papers yet",
-        "empty_body": "Choose a specialty in your profile to see featured papers."
-        if filters.tab == "featured" and not profile.specialty_id
-        else "Check back after tonight's ingestion run, or widen your journal picks in Account > Journals.",
+        **_empty_state(filters, profile),
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/list.html"
     return render(request, template, context)
