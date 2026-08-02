@@ -9,8 +9,8 @@
   <div class="feed-controls">
   <div class="chip-row">
     <a class="pill-tab{% if filters.tab == 'all' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='all' cursor=None %}">All</a>
-    <a class="pill-tab{% if filters.tab == 'unseen' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='unseen' cursor=None %}">Unseen</a>
     <a class="pill-tab{% if filters.tab == 'featured' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='featured' cursor=None %}">Featured</a>
+    <a class="pill-tab{% if filters.tab == 'unseen' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='unseen' cursor=None %}">Unseen</a>
   </div>
   <details class="feed-menu">
     <summary aria-label="Feed filters">☷ {% if filters.design %}{{ filters.design|title }}{% elif filters.sort == 'pub' %}Publication date{% else %}Filter & sort{% endif %}</summary>

@@ -44,6 +44,8 @@
 <p class="tags">{% for tag in summary.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</p>
 {% endwith %}
 
+<p class="summary-disclaimer">AI-generated from the PubMed abstract. Verify important details in the original abstract and full paper.</p>
+
 {% if request.user.is_authenticated %}
 <div class="card-actions" style="margin-bottom:20px">
   {% include "feed/_save_button.html" %}
