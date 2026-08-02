@@ -524,6 +524,27 @@ body.is-landing { background: var(--primary-dark); }
 .search-bar input { border: none; background: none; font-size: 15px; flex: 1; color: var(--text); padding: 0; width: 100%; }
 .search-bar input:focus { outline: none; }
 
+.recent-searches { margin-top: 32px; }
+.recent-searches h2 {
+  margin: 0 0 10px; font-size: 13px; font-weight: 700; color: var(--text-secondary);
+}
+.recent-search-list { border-top: 1px solid var(--border); }
+.recent-search-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 13px 0; border-bottom: 1px solid var(--border); color: var(--text);
+}
+.recent-search-item:hover { color: var(--accent); }
+.recent-search-item > span { min-width: 0; }
+.recent-search-item svg { flex-shrink: 0; color: var(--text-muted); }
+.recent-search-title {
+  display: block; overflow: hidden; color: inherit; font-size: 14px; font-weight: 600;
+  line-height: 1.35; text-overflow: ellipsis; white-space: nowrap;
+}
+.recent-search-meta {
+  display: block; margin-top: 3px; color: var(--text-muted); font-size: 12px;
+}
+.recent-search-empty { margin: 0; color: var(--text-muted); font-size: 13.5px; }
+
 .empty-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 60px 20px;

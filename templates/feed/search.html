@@ -9,20 +9,33 @@
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="search" name="q" value="{{ query }}" placeholder="Title, journal, or PMID" autofocus>
   </form>
+
+  {% if not query %}
+  <section class="recent-searches" aria-labelledby="recent-searches-title">
+    <h2 id="recent-searches-title">Recent searches</h2>
+    {% if recent_searches %}
+    <div class="recent-search-list">
+      {% for recent in recent_searches %}
+      <a class="recent-search-item" href="{% url 'paper_detail' recent.paper.pmid %}">
+        <span>
+          <span class="recent-search-title">{{ recent.paper.title }}</span>
+          <span class="recent-search-meta">{{ recent.paper.journal.display_name|default:recent.paper.journal_name_raw }}</span>
+        </span>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="recent-search-empty">Papers you open from search will appear here.</p>
+    {% endif %}
+  </section>
+  {% endif %}
 </div>
 
-{% if not query %}
-  <div class="empty-state">
-    <div class="empty-state-icon">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-    </div>
-    <h2>Search your journals</h2>
-    <p>Find anything in your feed by title, journal, or PMID.</p>
-  </div>
-{% else %}
+{% if query %}
   <div id="cards">
     {% for card in cards %}
-      {% include "feed/_card.html" with paper=card.paper state=card.state %}
+      {% include "feed/_card.html" with paper=card.paper state=card.state from_search=True %}
     {% empty %}
       <div class="empty-state">
         <div class="empty-state-icon">

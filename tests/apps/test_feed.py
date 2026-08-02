@@ -767,6 +767,27 @@ def test_search_finds_a_paper_by_title(client, user, circulation):
     assert b"Unrelated study" not in resp.content
 
 
+def test_search_finds_separated_partial_title_terms(client, user, circulation):
+    subscribe(user, circulation)
+    make_paper(
+        "1",
+        journal=circulation,
+        feed_date=date(2026, 7, 20),
+        title="Colchicine treatment after acute myocardial infarction",
+    )
+    make_paper(
+        "2",
+        journal=circulation,
+        feed_date=date(2026, 7, 19),
+        title="Colchicine in chronic coronary disease",
+    )
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:search"), {"q": "colch acute myo"})
+    assert b"Colchicine treatment after acute myocardial infarction" in resp.content
+    assert b"Colchicine in chronic coronary disease" not in resp.content
+
+
 def test_search_finds_a_paper_by_pmid(client, user, circulation):
     subscribe(user, circulation)
     make_paper("42508842", journal=circulation, feed_date=date(2026, 7, 20), title="Findable by ID")
@@ -794,6 +815,47 @@ def test_search_with_no_query_shows_no_results(client, user, circulation):
     resp = client.get(reverse("feed:search"))
     assert resp.status_code == 200
     assert b"Should not appear" not in resp.content
+
+
+def test_selecting_a_search_result_adds_it_to_recent_searches(client, user, circulation):
+    subscribe(user, circulation)
+    paper = make_paper(
+        "1", journal=circulation, feed_date=date(2026, 7, 20), title="Recent search paper"
+    )
+    client.force_login(user)
+
+    results = client.get(reverse("feed:search"), {"q": "Recent"})
+    assert f"{reverse('paper_detail', args=[paper.pmid])}?from=search".encode() in results.content
+
+    client.get(reverse("paper_detail", args=[paper.pmid]), {"from": "search"})
+    assert UserPaperState.objects.get(user=user, paper=paper).searched_at is not None
+
+    history = client.get(reverse("feed:search"))
+    assert b"Recent searches" in history.content
+    assert b"Recent search paper" in history.content
+
+
+def test_recent_searches_are_private_to_the_reader(client, user, circulation, cardiology):
+    paper = make_paper(
+        "1", journal=circulation, feed_date=date(2026, 7, 20), title="Private search paper"
+    )
+    other_user = make_user("other@example.com", cardiology)
+    UserPaperState.objects.create(user=other_user, paper=paper, searched_at="2026-07-20T12:00:00Z")
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:search"))
+    assert b"Private search paper" not in resp.content
+
+
+def test_recent_searches_are_newest_first(client, user, circulation):
+    older = make_paper("1", journal=circulation, feed_date=date(2026, 7, 19), title="Older search")
+    newer = make_paper("2", journal=circulation, feed_date=date(2026, 7, 20), title="Newer search")
+    UserPaperState.objects.create(user=user, paper=older, searched_at="2026-07-20T10:00:00Z")
+    UserPaperState.objects.create(user=user, paper=newer, searched_at="2026-07-20T11:00:00Z")
+    client.force_login(user)
+
+    body = client.get(reverse("feed:search")).content
+    assert body.index(b"Newer search") < body.index(b"Older search")
 
 
 # ---------------------------------------------------------------- public paper detail

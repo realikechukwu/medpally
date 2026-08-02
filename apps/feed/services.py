@@ -367,6 +367,20 @@ def get_saved_page(
     return SavedPage(states=states, next_cursor=next_cursor)
 
 
+def get_recent_searches(user: User, *, limit: int = 6) -> list[UserPaperState]:
+    """Papers the reader most recently selected from search results."""
+    return list(
+        UserPaperState.objects.filter(
+            user=user,
+            searched_at__isnull=False,
+            paper__is_visible=True,
+            paper__summary_status=Paper.SummaryStatus.OK,
+        )
+        .select_related("paper", "paper__journal")
+        .order_by("-searched_at", "-paper_id")[:limit]
+    )
+
+
 # ---------------------------------------------------------------- seen state
 
 

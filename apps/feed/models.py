@@ -28,6 +28,7 @@ class UserPaperState(models.Model):
     opened_at = models.DateTimeField(null=True, blank=True)
     saved_at = models.DateTimeField(null=True, blank=True)
     liked_at = models.DateTimeField(null=True, blank=True)
+    searched_at = models.DateTimeField(null=True, blank=True)
     dismissed_at = models.DateTimeField(null=True, blank=True)
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -46,6 +47,11 @@ class UserPaperState(models.Model):
                 fields=["user", "-liked_at"],
                 condition=models.Q(liked_at__isnull=False),
                 name="user_paper_liked_idx",
+            ),
+            models.Index(
+                fields=["user", "-searched_at"],
+                condition=models.Q(searched_at__isnull=False),
+                name="user_paper_search_idx",
             ),
         ]
 

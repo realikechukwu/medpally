@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse
@@ -157,18 +159,39 @@ def search(request: HttpRequest) -> HttpResponse:
     query = (request.GET.get("q") or "").strip()
     cards: list[dict] = []
     if query:
-        matches = (
+        # A reader rarely remembers a title as one exact, uninterrupted phrase.
+        # Require every fragment, but allow those fragments to appear anywhere
+        # in the title (or journal name). Splitting on punctuation means a query
+        # such as "SGLT-2, heart failure" still behaves like remembered words.
+        terms = re.findall(r"\w+", query)
+        title_match = Q()
+        journal_match = Q()
+        for term in terms:
+            title_match &= Q(title__icontains=term)
+            journal_match &= Q(journal__display_name__icontains=term)
+
+        search_match = Q(pmid=query)
+        if terms:
+            search_match |= title_match | journal_match
+
+        matches = list(
             services.feed_queryset(request.user)
-            .filter(
-                Q(title__icontains=query)
-                | Q(pmid=query)
-                | Q(journal__display_name__icontains=query)
-            )
+            .filter(search_match)
             .order_by("-feed_date", "-id")[:40]
         )
-        cards = [{"paper": p, "state": None} for p in matches]
+        states = services.attach_state(request.user, matches)
+        cards = [{"paper": paper, "state": states.get(paper.id)} for paper in matches]
+
+    recent_searches = services.get_recent_searches(request.user) if not query else []
     return render(
-        request, "feed/search.html", {"query": query, "cards": cards, "active_tab": "search"}
+        request,
+        "feed/search.html",
+        {
+            "query": query,
+            "cards": cards,
+            "recent_searches": recent_searches,
+            "active_tab": "search",
+        },
     )
 
 
@@ -182,8 +205,12 @@ def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
     )
     state = None
     if request.user.is_authenticated:
+        now = timezone.now()
+        defaults = {"opened_at": now}
+        if request.GET.get("from") == "search":
+            defaults["searched_at"] = now
         state, _ = UserPaperState.objects.update_or_create(
-            user=request.user, paper=paper, defaults={"opened_at": timezone.now()}
+            user=request.user, paper=paper, defaults=defaults
         )
     return render(request, "feed/paper_detail.html", {"paper": paper, "state": state})
 
