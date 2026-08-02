@@ -1,0 +1,23 @@
+{% comment %}
+  A week is a heading followed by its cards as flat siblings — deliberately not
+  a wrapper element. A week that straddles a page boundary arrives in two
+  separate swaps, and cards in the second half could never be nested back
+  inside a container rendered by the first. Tagging every card with data-week
+  instead lets the whole week collapse as one thing however it arrived.
+
+  show_header is false only when the previous page ended inside this same week.
+{% endcomment %}
+{% if group.show_header %}
+  <button type="button" class="week-header"
+    data-week-toggle="{{ group.week_start|date:'Y-m-d' }}"
+    aria-expanded="{{ group.is_open|yesno:'true,false' }}"
+    aria-label="Week of {{ group.week_start|date:'j F Y' }}, {{ group.total }} paper{{ group.total|pluralize }}">
+    <span class="week-label">Week of {{ group.week_start|date:"j M" }}</span>
+    {# Bracketed: "Week of 27 Jul 11" reads as a date with a stray number. #}
+    <span class="week-count">({{ group.total }})</span>
+    <svg class="week-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+  </button>
+{% endif %}
+{% for card in group.cards %}
+  {% include "feed/_card.html" with paper=card.paper state=card.state show_new_divider=card.show_new_divider week_key=group.week_start|date:'Y-m-d' card_hidden=group.is_open|yesno:',1' %}
+{% endfor %}

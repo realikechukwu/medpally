@@ -75,30 +75,49 @@ def feed_list(request: HttpRequest) -> HttpResponse:
         profile.feed_last_viewed_at = timezone.now()
         profile.save(update_fields=["feed_last_viewed_at"])
 
-    cards = [
-        {
+    cards = {
+        paper.id: {
             "paper": paper,
             "state": states.get(paper.id),
             "is_new": bool(last_viewed_at and paper.ingested_at > last_viewed_at),
         }
         for paper in page.papers
-    ]
+    }
 
     # The divider is a heading for the run of new cards, so it belongs above
     # the first of them exactly once — not stamped on every new card, and not
-    # repeated on page 2 when infinite scroll appends more.
+    # repeated on page 2 when infinite scroll appends more. It walks the flat
+    # page order rather than the groups, because "first new card" means first
+    # on the page, whichever week it landed in.
     if not filters.cursor:
-        for card in cards:
-            if card["is_new"]:
-                card["show_new_divider"] = True
+        for paper in page.papers:
+            if cards[paper.id]["is_new"]:
+                cards[paper.id]["show_new_divider"] = True
                 break
 
+    groups = [
+        {
+            "week_start": week.week_start,
+            "total": week.total,
+            "show_header": week.show_header,
+            "is_open": week.is_open,
+            "cards": [cards[paper.id] for paper in week.papers],
+        }
+        for week in page.weeks
+    ]
+
     context = {
-        "cards": cards,
+        "groups": groups,
         "next_cursor": page.next_cursor,
         "filters": filters,
         "next_url_name": "feed:list",
         "active_tab": "feed",
+        # Twenty hidden cards are barely a hundred pixels tall, so a "revealed"
+        # sentinel under a collapsed week fires the moment it lands and chains
+        # the whole archive in one burst. Once anything on the page is closed,
+        # loading becomes something the reader asks for.
+        "more_trigger": "revealed" if all(g["is_open"] for g in groups) else "click",
+        "is_first_page": not filters.cursor,
         **_empty_state(filters, profile),
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/list.html"
@@ -107,13 +126,21 @@ def feed_list(request: HttpRequest) -> HttpResponse:
 
 @login_required
 def read_later(request: HttpRequest) -> HttpResponse:
-    page = services.get_saved_page(request.user, cursor=request.GET.get("cursor") or None)
+    cursor = request.GET.get("cursor") or None
+    page = services.get_saved_page(request.user, cursor=cursor)
     cards = [{"paper": s.paper, "state": s, "is_new": False} for s in page.states]
+    # Saved is ordered by when you saved a paper, not when it published, so week
+    # headings keyed on feed_date would run out of order here. One open,
+    # unlabelled group keeps the template to a single code path until Saved
+    # grows big enough to want grouping on its own axis.
+    groups = [{"week_start": None, "show_header": False, "is_open": True, "cards": cards}]
     context = {
-        "cards": cards,
+        "groups": groups if cards else [],
         "next_cursor": page.next_cursor,
         "next_url_name": "feed:read_later",
         "active_tab": "saved",
+        "more_trigger": "revealed",
+        "is_first_page": not cursor,
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/read_later.html"
     return render(request, template, context)

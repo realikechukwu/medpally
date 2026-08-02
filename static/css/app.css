@@ -235,6 +235,40 @@ input::placeholder { color: var(--text-muted); }
 .new-divider { color: var(--accent); font-size: 12px; font-weight: 700; margin-bottom: 8px;
   text-transform: uppercase; letter-spacing: 0.03em; }
 
+/* ---------------------------------------------------------------- week groups */
+
+/* A week heading is a card-level object, not a page-level one, so it carries
+   its own 20px like .card does rather than joining the .feed-flush exception
+   list — that way it stays edge-aligned with the cards at every width. */
+.week-header {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  background: var(--bg); border: none; border-bottom: 1px solid var(--border);
+  padding: 13px 20px; font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.03em;
+  cursor: pointer;
+}
+.week-header:hover { background: var(--chip-bg); }
+/* Explicit rather than relying on the UA [hidden] rule, which any later
+   display declaration on .card would silently outrank. */
+.card[hidden] { display: none; }
+.week-count { color: var(--text-muted); }
+.week-chevron { margin-left: auto; color: var(--text-faint); transition: transform 0.12s ease; }
+.week-header[aria-expanded="false"] .week-chevron { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .week-chevron { transition: none; } }
+
+/* Loading the next page is a request once anything below is collapsed: hidden
+   cards have almost no height, so scrolling can't be what asks for them. */
+.feed-more {
+  display: block; width: 100%; background: none; border: none;
+  border-bottom: 1px solid var(--border); padding: 16px 20px; font-family: inherit;
+  font-size: 14px; font-weight: 600; color: var(--accent); cursor: pointer; text-align: center;
+}
+.feed-more:hover { background: var(--chip-bg); }
+
+/* The sentinel stands in for the page that hasn't arrived yet, so it borrows
+   the loading skeleton and sits flush in the list like a real card would. */
+.feed-sentinel .skeleton-card { margin: 0; border-bottom: 1px solid var(--border); }
+
 .card h3 { font-size: 16.5px; line-height: 1.35; margin: 0 0 8px; }
 .card h3 a { color: var(--text); }
 .card h3 a:hover { color: var(--accent); }
@@ -243,6 +277,10 @@ input::placeholder { color: var(--text-muted); }
 .summary dt { font-weight: 600; color: var(--text); margin-top: 8px; }
 .summary dt:first-child { margin-top: 0; }
 .summary dd { margin: 2px 0 0; }
+.summary-disclaimer {
+  margin: 0 0 16px; color: var(--text-muted); font-size: 11px;
+  font-style: italic; line-height: 1.4;
+}
 
 .tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; }
 .tag {

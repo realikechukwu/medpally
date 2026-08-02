@@ -1,0 +1,31 @@
+{% comment %}
+  The next page hangs off an element of its own rather than off the last card.
+  A card is not a stable anchor: dismiss swaps it to nothing, so dismissing the
+  last one used to take the pagination trigger with it and end the feed early
+  without a word.
+
+  It swaps itself out for the page it fetches, and that page ends with a fresh
+  one, so there is only ever a single #feed-more in the document.
+
+  Scroll-triggered only while everything on the page is open. Twenty collapsed
+  cards are barely a hundred pixels tall, so a "revealed" trigger under a closed
+  week fires the instant it lands and would chain-load the whole archive.
+{% endcomment %}
+{% if next_cursor %}
+  {% if more_trigger == "click" %}
+    <button type="button" id="feed-more" class="feed-more"
+      hx-get="{% url next_url_name|default:'feed:list' %}{% querystring cursor=next_cursor %}"
+      hx-trigger="click" hx-swap="outerHTML">Show earlier weeks</button>
+  {% else %}
+    <div id="feed-more" class="feed-sentinel" role="status" aria-label="Loading more papers"
+      hx-get="{% url next_url_name|default:'feed:list' %}{% querystring cursor=next_cursor %}"
+      hx-trigger="revealed" hx-swap="outerHTML">
+      <div class="skeleton-card">
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line skeleton-line-short"></div>
+        <div class="skeleton skeleton-copy"></div>
+        <div class="skeleton skeleton-copy skeleton-copy-short"></div>
+      </div>
+    </div>
+  {% endif %}
+{% endif %}

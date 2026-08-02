@@ -229,7 +229,9 @@ function hydratePage() {
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initWeekGroups();
   initFlashMessages();
+  applyWeekState();
   if (window.htmx) window.htmx.process(document.getElementById("app-main"));
   document.dispatchEvent(new CustomEvent("medpally:page-change"));
 }
@@ -418,6 +420,90 @@ function initTabNavigation() {
   idle(prefetchFrequentlyUsedTabs, { timeout: 1500 });
 }
 
+// Week groups.  A week's cards are flat siblings tagged with data-week rather
+// than nested in a container: a week that straddles a page boundary arrives in
+// two separate swaps, and the second half could never be nested back inside a
+// container the first half rendered.  Selecting by attribute lets the whole
+// week collapse as one thing however it arrived.
+//
+// Which weeks are open is a view preference rather than data, so it lives on
+// the device and never reaches the server.  It records only the weeks the
+// reader has actually changed, so the default (the newest weeks open) keeps
+// applying as the weeks roll forward rather than pinning one week open for good.
+var WEEK_STATE_VERSION = "v1";
+
+function safeLocalGet(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (error) {
+    return null;
+  }
+}
+
+function safeLocalSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch (error) {
+    // Private browsing and a full storage area should not break the toggle.
+  }
+}
+
+function weekStateKey() {
+  var scope = navigationScope();
+  return scope ? "medpally:weeks:" + WEEK_STATE_VERSION + ":" + scope : "";
+}
+
+function readWeekState() {
+  var key = weekStateKey();
+  var raw = key && safeLocalGet(key);
+  if (!raw) return {};
+  try {
+    var parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    return {};
+  }
+}
+
+function setWeekOpen(week, open) {
+  document.querySelectorAll('.card[data-week="' + week + '"]').forEach(function (card) {
+    card.hidden = !open;
+  });
+  document.querySelectorAll('[data-week-toggle="' + week + '"]').forEach(function (header) {
+    header.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+}
+
+// Cards arrive from the server closed or open by its own default, because the
+// server has no idea what this reader has since opened.  Reconciling on swap is
+// what stops a week the reader opened from snapping shut when its second page
+// lands.
+function applyWeekState() {
+  var headers = document.querySelectorAll("[data-week-toggle]");
+  if (!headers.length) return;
+  var state = readWeekState();
+  headers.forEach(function (header) {
+    var week = header.getAttribute("data-week-toggle");
+    if (state[week] !== undefined) setWeekOpen(week, state[week] === true);
+  });
+}
+
+function initWeekGroups() {
+  if (window.medpallyWeekGroupsInitialised) return;
+  window.medpallyWeekGroupsInitialised = true;
+  document.addEventListener("click", function (event) {
+    var header = event.target.closest("[data-week-toggle]");
+    if (!header) return;
+    var week = header.getAttribute("data-week-toggle");
+    var open = header.getAttribute("aria-expanded") !== "true";
+    setWeekOpen(week, open);
+    var state = readWeekState();
+    state[week] = open;
+    safeLocalSet(weekStateKey(), JSON.stringify(state));
+  });
+  document.addEventListener("htmx:afterSwap", applyWeekState);
+}
+
 // Authentication is a full-page POST, so provide immediate feedback and block
 // accidental double-submits while the browser follows the response or redirect.
 function initAuthSubmitLoading() {
@@ -458,7 +544,9 @@ document.addEventListener("DOMContentLoaded", function () {
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initWeekGroups();
   initFlashMessages();
+  applyWeekState();
   initAuthSubmitLoading();
   initTabNavigation();
   initServiceWorker();

@@ -1,6 +1,13 @@
-{% for card in cards %}
-  {% include "feed/_card.html" with paper=card.paper state=card.state show_new_divider=card.show_new_divider trigger_next=forloop.last %}
+{% for group in groups %}
+  {% include "feed/_week_group.html" %}
 {% empty %}
+  {% comment %}
+    Only the first page speaks for an empty feed. A later page can come back
+    empty because a paper was dismissed between requests, and the sentinel
+    swaps itself out for whatever arrives — so without this guard an empty
+    state would appear halfway down a feed full of papers.
+  {% endcomment %}
+  {% if is_first_page %}
   <div class="empty-state">
     <div class="empty-state-icon">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
@@ -11,4 +18,6 @@
       <a class="empty-state-action" href="{{ empty_action_url }}">{{ empty_action_label }}</a>
     {% endif %}
   </div>
+  {% endif %}
 {% endfor %}
+{% include "feed/_sentinel.html" %}

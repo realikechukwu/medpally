@@ -1,8 +1,9 @@
 """The feed query, keyset pagination, and per-user state lookup.
 
 Everything here is written to the query-count budget in the plan: the feed
-page itself is one query, seen-state is one lookup plus (at most) one insert,
-and that's the whole page regardless of how many cards are on it.
+page itself is one query, the week-count aggregate behind the group headings
+is a second, seen-state is one lookup plus (at most) one insert, and that's
+the whole page regardless of how many cards — or how many weeks — are on it.
 """
 
 from __future__ import annotations
@@ -12,14 +13,16 @@ import binascii
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.conf import settings
-from django.db.models import Exists, OuterRef, Q, QuerySet, Subquery
+from django.db.models import Count, DateField, Exists, OuterRef, Q, QuerySet, Subquery
+from django.db.models.functions import TruncWeek
 
 from apps.accounts.models import User, UserJournalSubscription
 from apps.papers.models import Paper, PaperSpecialty
+from engine.featured import week_start_for
 
 from .filters import FeedFilters
 from .models import FeaturedPaper, UserPaperState
@@ -67,6 +70,28 @@ def exclude_seen(qs: QuerySet[Paper], user: User) -> QuerySet[Paper]:
     """Hide papers the reader has opened."""
     seen = UserPaperState.objects.filter(user=user, paper=OuterRef("pk"), opened_at__isnull=False)
     return qs.exclude(Exists(seen))
+
+
+def filtered_queryset(user: User, filters: FeedFilters) -> QuerySet[Paper]:
+    """The feed narrowed to one tab, design and week — before any ordering.
+
+    Cards and week counts have to agree about what is in the feed, or a header
+    promises twenty papers and the week opens on twelve. Sharing this one
+    definition is what keeps them honest; it is not merely deduplication.
+
+    A featured tab with no specialty yields none() rather than an early return,
+    so callers get a queryset either way — and none() costs no query.
+    """
+    qs = feed_queryset(user)
+    if filters.tab == "unseen":
+        qs = exclude_seen(qs, user)
+    if filters.design:
+        qs = qs.filter(summary__study_type__in=filters.study_types())
+    if filters.tab == "featured":
+        if not user.profile.specialty_id:
+            return qs.none()
+        qs = qs.filter(is_featured=True)
+    return qs
 
 
 # ---------------------------------------------------------------- keyset cursor
@@ -150,6 +175,9 @@ def apply_cursor(
 class FeedPage:
     papers: list[Paper]
     next_cursor: str | None
+    # The same Paper objects regrouped, not a copy. attach_state() still wants
+    # the flat list, and the template wants them in weeks.
+    weeks: list[WeekGroup]
 
 
 def get_feed_page(
@@ -163,22 +191,133 @@ def get_feed_page(
     page_size = page_size or settings.FEED_PAGE_SIZE
     filters = filters or FeedFilters(tab="unseen" if unseen_only else "all", cursor=cursor or "")
     sort = get_sort_spec(filters.sort)
-    qs = feed_queryset(user)
-    if filters.tab == "unseen":
-        qs = exclude_seen(qs, user)
-    if filters.design:
-        qs = qs.filter(summary__study_type__in=filters.study_types())
-    if filters.tab == "featured":
-        if not user.profile.specialty_id:
-            return FeedPage(papers=[], next_cursor=None)
-        qs = qs.filter(is_featured=True)
-    qs = apply_cursor(qs.order_by(*sort.order_by), filters.cursor or cursor, sort)
+    date_field = sort.fields[0]
+    qs = filtered_queryset(user, filters)
 
-    papers = list(qs[: page_size + 1])
+    # The cursor already carries the sort date of the last paper on the previous
+    # page, so the week that page ended in comes free — no second cursor, and a
+    # tampered cursor falls back here and in apply_cursor together, which is what
+    # keeps a junk cursor showing page one *with* its heading.
+    raw_cursor = filters.cursor or cursor
+    decoded = decode_cursor(raw_cursor, sort) if raw_cursor else None
+    previous_week = week_start_for(decoded[0]) if decoded else None
+
+    papers = list(apply_cursor(qs.order_by(*sort.order_by), raw_cursor, sort)[: page_size + 1])
     has_next = len(papers) > page_size
     papers = papers[:page_size]
     next_cursor = encode_cursor(papers[-1], sort) if has_next and papers else None
-    return FeedPage(papers=papers, next_cursor=next_cursor)
+
+    totals = (
+        week_counts(
+            qs,
+            date_field=date_field,
+            oldest=getattr(papers[-1], date_field),
+            newest=getattr(papers[0], date_field),
+        )
+        if papers
+        else {}
+    )
+    weeks = group_by_week(papers, date_field=date_field, totals=totals, previous_week=previous_week)
+    return FeedPage(papers=papers, next_cursor=next_cursor, weeks=weeks)
+
+
+# ---------------------------------------------------------------- week grouping
+#
+# Months of daily papers make one long river with no landmarks. Weeks are the
+# unit this product already runs on — featured selection is weekly and
+# week_start_for() is the same Monday — so the feed borrows it and hands the
+# reader a heading per week with the week's whole total beside it.
+#
+# The grouping is derived from the papers already on the page rather than from
+# the calendar. A calendar rule ("this week and last week") looks equivalent and
+# is not: ingestion is nightly, so early Monday the current week is empty; a
+# narrow design filter empties most weeks; and every Featured paper is stamped a
+# week behind its selection run (apps/feed/featured.py gathers the *preceding*
+# Mon-Sun). Anchoring on the data is right in all of those cases and, unlike the
+# clock, can be tested with fixed dates.
+
+EXPANDED_WEEKS = 2
+
+
+@dataclass(slots=True)
+class WeekGroup:
+    week_start: date
+    total: int
+    papers: list[Paper]
+    show_header: bool
+    is_open: bool
+
+
+def week_counts(
+    qs: QuerySet[Paper], *, date_field: str, oldest: date, newest: date
+) -> dict[date, int]:
+    """Whole-week totals for the weeks this page touches. One query, always.
+
+    Bounded to the page's own span, so it reads one to three weeks rather than
+    aggregating a reader's entire history.
+
+    Pass the queryset *before* the feed's ordering is applied. The compiler
+    folds every non-alias ORDER BY expression into the GROUP BY, so an aggregate
+    carrying ("-feed_date", "-is_priority_study", "-id") groups by the paper
+    itself — GROUP BY 1, id — and reports a total of 1 for every week, silently
+    and with no error to notice. Ordering on the `week` alias here displaces
+    that if a caller ever does hand over an ordered queryset; both together are
+    what make this safe, and the test names the hazard.
+    """
+    rows = (
+        qs.filter(
+            **{
+                f"{date_field}__gte": week_start_for(oldest),
+                f"{date_field}__lt": week_start_for(newest) + timedelta(days=7),
+            }
+        )
+        .annotate(week=TruncWeek(date_field, output_field=DateField()))
+        .values("week")
+        .annotate(n=Count("id"))
+        .order_by("-week")
+    )
+    return {row["week"]: row["n"] for row in rows}
+
+
+def group_by_week(
+    papers: list[Paper],
+    *,
+    date_field: str,
+    totals: dict[date, int],
+    previous_week: date | None,
+) -> list[WeekGroup]:
+    """Bucket one page of papers into weeks, in a single pass.
+
+    The papers arrive ordered by `field` descending and the bucket key is that
+    same field, so the buckets come out in order for either sort and a week can
+    never reappear once it has been closed.
+
+    `previous_week` is the week the last page ended in. When this page opens in
+    that same week the header is suppressed — otherwise a week split across a
+    page boundary would announce itself twice.
+    """
+    groups: list[WeekGroup] = []
+    for paper in papers:
+        start = week_start_for(getattr(paper, date_field))
+        if not groups or groups[-1].week_start != start:
+            groups.append(
+                WeekGroup(
+                    week_start=start,
+                    total=0,
+                    papers=[],
+                    # Only the page's *first* group can be a continuation; every
+                    # later one begins here and so announces itself.
+                    show_header=bool(groups) or start != previous_week,
+                    is_open=previous_week is None and len(groups) < EXPANDED_WEEKS,
+                )
+            )
+        groups[-1].papers.append(paper)
+
+    for group in groups:
+        # A header must never claim fewer papers than it is showing, so the
+        # count on the page is the floor if the aggregate was skipped.
+        group.total = max(totals.get(group.week_start, 0), len(group.papers))
+    return groups
 
 
 # ---------------------------------------------------------------- read later

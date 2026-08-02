@@ -1,9 +1,5 @@
 {% load covers %}
-<article id="paper-{{ paper.pmid }}" class="card{% if state and state.opened_at %} seen{% endif %}"
-  {% if trigger_next and next_cursor %}
-    hx-get="{% url next_url_name|default:'feed:list' %}{% querystring cursor=next_cursor %}"
-    hx-trigger="revealed" hx-swap="afterend"
-  {% endif %}>
+<article id="paper-{{ paper.pmid }}" class="card{% if state and state.opened_at %} seen{% endif %}"{% if week_key %} data-week="{{ week_key }}"{% endif %}{% if card_hidden %} hidden{% endif %}>
   {% if show_new_divider %}<div class="new-divider">New since your last visit</div>{% endif %}
 
   <div class="card-header">
