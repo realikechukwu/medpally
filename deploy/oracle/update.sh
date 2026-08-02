@@ -21,6 +21,15 @@ docker compose \
   -f "$script_dir/compose.yaml" \
   up -d --remove-orphans
 
+# Caddy's configuration is a bind-mounted file. Compose does not recreate the
+# container when only that file's contents change, so explicitly reload it on
+# every deploy. This is cheap, graceful, and makes new hostnames take effect
+# without requiring a manual restart on the VM.
+docker compose \
+  --env-file "$script_dir/.env" \
+  -f "$script_dir/compose.yaml" \
+  exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+
 web_container=$(docker compose \
   --env-file "$script_dir/.env" \
   -f "$script_dir/compose.yaml" \
@@ -48,4 +57,3 @@ docker compose \
   -f "$script_dir/compose.yaml" \
   logs --tail 100 web
 exit 1
-
