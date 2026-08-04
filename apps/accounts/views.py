@@ -9,6 +9,9 @@ from __future__ import annotations
 
 from functools import wraps
 
+from allauth.account.internal.flows.email_verification import (
+    send_verification_email_to_address,
+)
 from allauth.account.models import EmailAddress
 from django.contrib import messages
 from django.contrib.auth import logout
@@ -17,6 +20,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from apps.catalog.models import Journal, SpecialtyJournal
 from apps.common.context_processors import initials
@@ -194,6 +198,39 @@ def account(request: HttpRequest) -> HttpResponse:
             "active_tab": "account",
         },
     )
+
+
+@login_required
+@require_POST
+def resend_verification(request: HttpRequest) -> HttpResponse:
+    """One click from the account screen, rather than allauth's email manager.
+
+    The account screen used to link to allauth's /accounts/email/ page, which
+    is a generic address manager — a radio button and three unlabelled-looking
+    submit buttons — for a user who has exactly one address and one intention.
+
+    send_verification_email_to_address is what allauth's own EmailView calls
+    for `action_send`; going through it keeps the confirmation cooldown and the
+    user-facing messaging (see AccountAdapter.add_message) identical to the
+    stock flow. It returns False when the cooldown swallowed the request.
+    """
+    address = EmailAddress.objects.filter(user=request.user, email=request.user.email).first()
+    if address is None:
+        # A user created before allauth saw them (admin, shell, data import)
+        # has no EmailAddress row at all, and so nothing to confirm.
+        address = EmailAddress.objects.create(
+            user=request.user, email=request.user.email, verified=False, primary=True
+        )
+
+    if address.verified:
+        messages.info(request, "Your email address is already verified.")
+    elif not send_verification_email_to_address(request, address):
+        messages.info(
+            request,
+            "We sent a verification email moments ago — please check your inbox "
+            "and spam folder before requesting another.",
+        )
+    return redirect("accounts:account")
 
 
 @login_required

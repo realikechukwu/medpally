@@ -6,6 +6,20 @@
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "python", "manage.py", "runserver", "8000"],
       "port": 8000
+    },
+    {
+      "name": "medfeed-local-db",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "DATABASE_URL=postgres://medfeed:medfeed@localhost:5433/medfeed",
+        "uv",
+        "run",
+        "python",
+        "manage.py",
+        "runserver",
+        "8009"
+      ],
+      "port": 8009
     }
   ]
 }

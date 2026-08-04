@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 from django.http import HttpRequest
 
@@ -10,11 +12,12 @@ def initials(full_name: str, email: str) -> str:
     return basis[:2].upper()
 
 
-def site(request: HttpRequest) -> dict[str, str]:
-    context = {
+def site(request: HttpRequest) -> dict[str, Any]:
+    context: dict[str, Any] = {
         "SITE_NAME": settings.SITE_NAME,
         "SITE_BASE_URL": settings.SITE_BASE_URL,
         "MARKETING_BASE_URL": settings.MARKETING_BASE_URL,
+        "GOOGLE_OAUTH_ENABLED": settings.GOOGLE_OAUTH_ENABLED,
     }
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:

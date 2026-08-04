@@ -42,5 +42,10 @@ urlpatterns = [
         name="settings_notifications",
     ),
     path("account/", views.account, name="account"),
+    path(
+        "account/resend-verification/",
+        views.resend_verification,
+        name="resend_verification",
+    ),
     path("account/delete/", views.delete_account_confirm, name="delete_account_confirm"),
 ]

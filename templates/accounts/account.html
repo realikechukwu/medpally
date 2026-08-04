@@ -56,13 +56,16 @@
     </span>
   </div>
   {% else %}
-  <a class="settings-row" href="{% url 'account_email' %}">
-    <span class="settings-row-label">Email</span>
-    <span class="settings-row-value">
-      Not verified
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
-    </span>
-  </a>
+  <form method="post" action="{% url 'accounts:resend_verification' %}" style="margin:0">
+    {% csrf_token %}
+    <button type="submit" class="settings-row">
+      <span class="settings-row-label">Email</span>
+      <span class="settings-row-value">
+        Not verified — resend
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
+      </span>
+    </button>
+  </form>
   {% endif %}
 </div>
 

@@ -145,6 +145,20 @@ ACCOUNT_EMAIL_VERIFICATION = "optional"
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_SESSION_REMEMBER = True
 
+# Without this allauth derives the prefix from django.contrib.sites, which
+# ships a Site row of "example.com" — every verification mail then arrives
+# titled "[example.com] ...", which reads as phishing and scores as spam.
+# apps.accounts.apps also rewrites that row; this makes the subject correct
+# even before the first migrate has run.
+ACCOUNT_EMAIL_SUBJECT_PREFIX = f"[{SITE_NAME}] "
+
+# A resend that silently does nothing is worse than one that fails loudly, but
+# a signup must not 500 because the mail relay is down — the account is already
+# created by then. The adapter logs the failure and flags the request instead,
+# and apps.accounts.views.resend_verification reads that flag to tell the user
+# the truth rather than an unconditional "email sent".
+ACCOUNT_ADAPTER = "apps.accounts.adapters.AccountAdapter"
+
 # Our User has no username column at all (email is USERNAME_FIELD). Without
 # this, allauth still resolves its default "username" field when building the
 # signup form and the page 500s with FieldDoesNotExist — signup, and only
@@ -154,14 +168,27 @@ SOCIALACCOUNT_ADAPTER = "apps.accounts.adapters.SocialAccountAdapter"
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+
+# The provider stays installed unconditionally so its URLs always reverse (the
+# login template reverses them, and a half-configured deploy should render
+# rather than 500). Whether the button is *shown* is a separate question,
+# answered by GOOGLE_OAUTH_ENABLED — allauth happily lists a provider whose
+# client_id is the empty string, and that button can only fail.
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+
 SOCIALACCOUNT_PROVIDERS = {
     "google": {
         "APP": {
-            "client_id": env("GOOGLE_OAUTH_CLIENT_ID", default=""),
-            "secret": env("GOOGLE_OAUTH_CLIENT_SECRET", default=""),
+            "client_id": GOOGLE_OAUTH_CLIENT_ID,
+            "secret": GOOGLE_OAUTH_CLIENT_SECRET,
             "key": "",
         },
         "SCOPE": ["profile", "email"],
+        # offline would hand us a refresh token we have no use for: we read the
+        # profile once at signup and never call Google again on the user's
+        # behalf. Fewer stored credentials, smaller consent screen.
         "AUTH_PARAMS": {"access_type": "online"},
     }
 }
@@ -178,6 +205,12 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = env("BREVO_SMTP_USER", default="")
 EMAIL_HOST_PASSWORD = env("BREVO_SMTP_KEY", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="MedPally <noreply@medpally.com>")
+
+# Django defaults to no socket timeout at all, so an unresponsive relay blocks
+# the worker thread that is sending until gunicorn's own timeout kills it. Two
+# workers of two threads do not have many to spare, and nothing about signup
+# should wait on Brevo for longer than a reader will.
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 
 # ---------------------------------------------------------------- engine
 

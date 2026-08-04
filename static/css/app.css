@@ -498,6 +498,13 @@ body.is-landing { background: var(--primary-dark); }
 }
 .settings-row:last-child { border-bottom: none; }
 .settings-row:hover { color: var(--text); background: rgba(0,0,0,0.02); }
+/* A settings row is usually an <a>; the resend-verification and sign-out rows
+   are submit buttons, which need the UA's own styling taken back off. */
+button.settings-row {
+  width: 100%; background: none; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+button.settings-row:last-child { border-bottom: none; }
 .settings-row-label { font-size: 14.5px; color: var(--text); font-weight: 500; }
 .settings-row-value {
   display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 14px;
