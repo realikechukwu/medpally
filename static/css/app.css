@@ -526,11 +526,19 @@ button.settings-row:last-child { border-bottom: none; }
 
 .search-bar {
   display: flex; align-items: center; gap: 10px; background: var(--chip-bg);
-  border-radius: var(--radius-input); padding: 12px 14px; margin-bottom: 4px;
+  border-radius: var(--radius-input); padding: 6px 6px 6px 14px; margin-bottom: 4px;
 }
 .search-bar svg { flex-shrink: 0; color: var(--text-muted); }
 .search-bar input { border: none; background: none; font-size: 15px; flex: 1; color: var(--text); padding: 0; width: 100%; }
 .search-bar input:focus { outline: none; }
+.search-bar-submit {
+  display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0; border: none; border-radius: 9px;
+  background: var(--accent); color: #fff; cursor: pointer;
+}
+.search-bar-submit:hover { background: var(--accent-dark); }
+.search-bar-submit:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.search-bar-submit svg { color: #fff; }
 
 .recent-searches { margin-top: 32px; }
 .recent-searches h2 {
