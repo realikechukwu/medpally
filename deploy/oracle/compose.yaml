@@ -37,6 +37,8 @@ services:
     env_file:
       - ${ORACLE_ENV_FILE:-.env}
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       web:
         condition: service_healthy
