@@ -11,9 +11,24 @@
         format console
     }
 }
+
 lifeos.realikechukwu.com {
     encode zstd gzip
     reverse_proxy host.docker.internal:8001
+
+    header {
+        -Server
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+budget.realikechukwu.com {
+    encode zstd gzip
+    reverse_proxy host.docker.internal:8002
 
     header {
         -Server
