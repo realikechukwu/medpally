@@ -31,28 +31,12 @@ services:
       start_period: 90s
     security_opt:
       - no-new-privileges:true
+    networks:
+      edge_proxy:
+        aliases:
+          - medpally-web
 
-  caddy:
-    image: caddy:2-alpine
-    env_file:
-      - ${ORACLE_ENV_FILE:-.env}
-    restart: unless-stopped
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      web:
-        condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    security_opt:
-      - no-new-privileges:true
-
-volumes:
-  caddy_data:
-  caddy_config:
+networks:
+  edge_proxy:
+    external: true
+    name: edge_proxy

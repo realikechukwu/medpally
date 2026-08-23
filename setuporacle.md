@@ -9,15 +9,17 @@ already run independently of Render.
 The resulting production path is:
 
 ```text
-Browser -> OCI public IP -> Caddy (HTTPS) -> Gunicorn/Django -> Supabase Postgres
-                                                   |
-                                                   +-> OpenAI, PubMed, Brevo, Sentry
-GitHub Actions -----------------------------------------> Supabase Postgres
+Browser -> OCI public IP -> standalone Caddy gateway -> edge_proxy -> Gunicorn/Django
+                                      |                                      |
+                                      |                                      +-> Supabase Postgres
+                                      +-> host ports 8001/8002
+GitHub Actions -------------------------------------------------> Supabase Postgres
 ```
 
-The deployment files are under `deploy/oracle/`. Caddy obtains and renews the
-TLS certificate automatically. Only ports 80 and 443 are published; Django's
-port and the database are never exposed on the VM.
+The MedPally web deployment files are under `deploy/oracle/`. The VM-level
+gateway is a separate Compose project under `/opt/gateway`; it owns Caddy,
+public ports 80/443, and certificate renewal for MedPally and the other host
+applications. MedPally's port 8000 and the database are never published.
 
 ## 1. Before creating anything
 
@@ -64,8 +66,8 @@ In OCI Console:
 6. Do **not** open ports 8000, 5432, or 6543.
 
 Docker-published ports can bypass `ufw` rules, so the OCI Security List/NSG is
-the outer firewall that must stay restrictive. This stack publishes only
-Caddy's 80/443 ports.
+the outer firewall that must stay restrictive. Only the standalone gateway
+publishes ports 80/443.
 
 ## 3. Point a temporary hostname at Oracle
 
@@ -153,11 +155,11 @@ MARKETING_BASE_URL=https://web.medpally.com
 MARKETING_HOSTS=web.medpally.com,medpally.com,www.medpally.com
 ```
 
-The marketing site is served by the same Caddy and Django containers at
-`web.medpally.com`, but it uses a separate public-only URL map. Add
+The marketing site is routed by the standalone gateway to the same Django
+container at `web.medpally.com`, but it uses a separate public-only URL map. Add
 `web.medpally.com`, `medpally.com`, and `www.medpally.com` to
 `DJANGO_ALLOWED_HOSTS`; the apex and `www` names are already recognised as
-future marketing hosts, even before they are added to Caddy and DNS.
+future marketing hosts, even before they are added to the gateway and DNS.
 
 Important environment details:
 
@@ -173,22 +175,34 @@ Important environment details:
 
 ## 7. Build and start the test deployment
 
+The VM administrator must first create the persistent external Docker network
+and provision the independent `/opt/gateway` project. That project contains
+only Caddy, uses `gateway.service`, and owns its own minimal `.env` and
+`Caddyfile`; none of those files live in this repository. Confirm the shared
+network exists before starting MedPally:
+
+```bash
+sudo docker network inspect edge_proxy
+sudo systemctl status gateway.service
+```
+
 ```bash
 cd /opt/medpally
 ORACLE_ENV_FILE=.env docker compose -f deploy/oracle/compose.yaml config --quiet
 deploy/oracle/update.sh
 ```
 
-The first build downloads Arm-compatible Python, uv, and Caddy images. The web
-container then collects static files, applies Django migrations, and starts
-Gunicorn. Caddy waits for the web health check before proxying traffic.
+The first build downloads Arm-compatible Python and uv images. The web
+container then collects static files, applies Django migrations, starts
+Gunicorn, and joins `edge_proxy` with the unique `medpally-web` alias. The
+gateway proxies to `medpally-web:8000` and is not recreated by this command.
 
 Inspect the deployment:
 
 ```bash
 docker compose -f deploy/oracle/compose.yaml ps
 docker compose -f deploy/oracle/compose.yaml logs --tail 100 web
-docker compose -f deploy/oracle/compose.yaml logs --tail 100 caddy
+sudo docker compose -f /opt/gateway/compose.yaml logs --tail 100 caddy
 curl -fsS https://oracle-test.medpally.com/healthz
 ```
 
@@ -215,15 +229,17 @@ https://oracle-test.medpally.com/accounts/google/login/callback/
 
 Remove the test callback after the migration.
 
-## 8. Start the stack automatically after a VM reboot
+## 8. Start the web app automatically after a VM reboot
 
-The supplied systemd unit assumes the repository lives at `/opt/medpally`:
+The supplied systemd unit assumes the repository lives at `/opt/medpally` and
+manages only the MedPally web Compose project:
 
 ```bash
 sudo cp /opt/medpally/deploy/oracle/medpally.service /etc/systemd/system/medpally.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now medpally.service
 sudo systemctl status medpally.service
+sudo systemctl status gateway.service
 ```
 
 If the repository is elsewhere, edit `WorkingDirectory` and all compose paths
@@ -239,6 +255,7 @@ After reconnecting:
 
 ```bash
 systemctl status medpally.service
+systemctl status gateway.service
 docker compose -f /opt/medpally/deploy/oracle/compose.yaml ps
 curl -fsS https://oracle-test.medpally.com/healthz
 ```
@@ -257,7 +274,8 @@ SITE_BASE_URL=https://medpally.com
 
 Then:
 
-1. Run `deploy/oracle/update.sh` so Caddy is ready for the production hostname.
+1. Update and validate `/opt/gateway/Caddyfile` separately so the standalone
+   gateway is ready for the production hostname, then reload `gateway.service`.
 2. Change the production DNS A record to the reserved OCI public IP.
 3. If `www` is used, point it to the same IP or CNAME it to the apex domain.
 4. Wait for DNS propagation and Caddy certificate issuance.
@@ -267,6 +285,7 @@ Then:
 
    ```bash
    docker compose -f /opt/medpally/deploy/oracle/compose.yaml logs -f --tail 100
+   sudo docker compose -f /opt/gateway/compose.yaml logs -f --tail 100
    ```
 
 ## 10. Deploy updates from GitHub Actions
@@ -274,7 +293,8 @@ Then:
 The `deploy-oracle.yml` workflow deploys every push to `main`. It uses the
 repository secret `ORACLE_DEPLOY_SSH_KEY`, a dedicated SSH key that is limited
 to the Oracle deployment user. The workflow syncs source files while preserving
-`deploy/oracle/.env`, then builds, starts, and health-checks the stack.
+`deploy/oracle/.env`, then builds, starts, and health-checks the MedPally web
+container. It does not deploy, stop, restart, or configure the VM gateway.
 
 Keep the production environment file on the VM only; it must never be added to
 GitHub Actions secrets or committed to the repository.
@@ -335,6 +355,7 @@ Useful commands:
 ```bash
 # Status
 docker compose -f deploy/oracle/compose.yaml ps
+sudo systemctl status gateway.service
 
 # Logs
 docker compose -f deploy/oracle/compose.yaml logs -f --tail 200
@@ -358,11 +379,12 @@ the systemd unit restores the stack automatically.
 
 ## 12. Backups and monitoring
 
-The VM is stateless apart from Caddy's replaceable certificate cache. User and
-paper data remain in Supabase, so OCI boot-volume snapshots are useful for fast
-host recovery but are not database backups. Enable an OCI boot-volume backup
-policy only if it remains inside the Always Free backup/storage allowance shown
-in your Console.
+The MedPally app is stateless. User and paper data remain in Supabase, while the
+standalone gateway keeps certificate and runtime state in the external Docker
+volumes `medpally_caddy_data` and `medpally_caddy_config`. OCI boot-volume
+snapshots are useful for fast host recovery but are not database backups.
+Enable an OCI boot-volume backup policy only if it remains inside the Always
+Free backup/storage allowance shown in your Console.
 
 Keep these controls:
 
@@ -391,9 +413,10 @@ same Git commit. The removed `render.yaml` remains recoverable from Git history.
 ### Caddy cannot obtain a certificate
 
 Confirm DNS resolves to the reserved OCI IP and OCI allows inbound TCP 80/443.
-Check `docker compose -f deploy/oracle/compose.yaml logs caddy`. Do not put a
-Cloudflare proxy in front until the first certificate is working unless its TLS
-mode is configured correctly.
+Check `sudo docker compose -f /opt/gateway/compose.yaml logs caddy`. Do not put
+a Cloudflare proxy in front until the first certificate is working unless its
+TLS mode is configured correctly. Gateway configuration and reloads are managed
+from `/opt/gateway`, not by `deploy/oracle/update.sh`.
 
 ### Django returns 400 Bad Request
 
@@ -419,4 +442,4 @@ URL-encoded, an empty host allowlist, or a failed migration.
 ### The VM runs out of disk space
 
 Inspect with `df -h` and `docker system df`. Prune unused image/build cache, not
-named volumes. Caddy's named volumes are small and should normally be retained.
+named volumes. The gateway's external Caddy volumes must always be retained.

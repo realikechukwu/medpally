@@ -1,5 +1,5 @@
 [Unit]
-Description=MedPally Oracle deployment
+Description=MedPally web deployment
 Requires=docker.service
 After=docker.service network-online.target
 Wants=network-online.target
@@ -15,4 +15,3 @@ TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target
-
