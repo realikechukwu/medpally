@@ -305,7 +305,7 @@ def test_feed_includes_an_accessible_back_to_top_control(client, user):
 
     assert b"data-back-to-top" in response.content
     assert b'aria-label="Back to top"' in response.content
-    assert b"hidden" in response.content
+    assert b'title="Back to top" hidden' in response.content
 
 
 def test_signed_in_feed_includes_progressive_tab_navigation(client, user, circulation):
@@ -650,9 +650,10 @@ def test_cards_in_a_closed_week_render_hidden(client, user, circulation):
 
     resp = client.get(reverse("feed:list"))
 
-    assert resp.content.count(b"<article") == 3
+    cards = [chunk.split(b"</article>", 1)[0] for chunk in resp.content.split(b"<article")[1:]]
+    assert len(cards) == 3
     # Newest two weeks open, the third closed.
-    assert resp.content.count(b"hidden>") == 1
+    assert sum(b" hidden>" in card for card in cards) == 1
     assert resp.content.count(b'aria-expanded="true"') == 2
     assert resp.content.count(b'aria-expanded="false"') == 1
 
