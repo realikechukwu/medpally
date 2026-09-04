@@ -113,6 +113,31 @@ function initFeedMenu() {
   });
 }
 
+// The feed can grow for many pages through infinite scroll. Keep the return
+// trip short without occupying space until the reader has moved well past the
+// first screen. Event delegation also survives cached tab-navigation swaps.
+var BACK_TO_TOP_THRESHOLD = 480;
+
+function updateBackToTop() {
+  var button = document.querySelector("[data-back-to-top]");
+  if (!button) return;
+  button.hidden = window.scrollY <= BACK_TO_TOP_THRESHOLD;
+}
+
+function initBackToTop() {
+  if (!window.medpallyBackToTopInitialised) {
+    window.medpallyBackToTopInitialised = true;
+    window.addEventListener("scroll", updateBackToTop, { passive: true });
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-back-to-top]");
+      if (!button) return;
+      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+    });
+  }
+  updateBackToTop();
+}
+
 // Tab navigation stays progressively enhanced: ordinary links still work if
 // JavaScript is unavailable, while signed-in readers get instant, cached swaps
 // of the content area.  We deliberately use sessionStorage, not a shared HTTP
@@ -229,6 +254,7 @@ function hydratePage() {
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initBackToTop();
   initWeekGroups();
   initFlashMessages();
   applyWeekState();
@@ -545,6 +571,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initBarTitle();
   initJournalGroupToggles();
   initFeedMenu();
+  initBackToTop();
   initWeekGroups();
   initFlashMessages();
   applyWeekState();

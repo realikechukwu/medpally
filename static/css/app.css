@@ -270,6 +270,24 @@ input::placeholder { color: var(--text-muted); }
    the loading skeleton and sits flush in the list like a real card would. */
 .feed-sentinel .skeleton-card { margin: 0; border-bottom: 1px solid var(--border); }
 
+/* Kept just outside the feed column on wide screens and tucked against the
+   viewport edge on phones. It clears the fixed bottom navigation in both. */
+.back-to-top {
+  position: fixed;
+  right: max(16px, calc((100vw - var(--content-width)) / 2 - 60px));
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  z-index: 12;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; padding: 0;
+  border: 1px solid var(--border-strong); border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96); color: var(--primary);
+  box-shadow: 0 4px 16px rgba(13, 42, 56, 0.16);
+  cursor: pointer;
+}
+.back-to-top:hover { background: var(--chip-bg); }
+.back-to-top:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.back-to-top[hidden] { display: none; }
+
 .card h3 { font-size: 16.5px; line-height: 1.35; margin: 0 0 8px; }
 .card h3 a { color: var(--text); }
 .card h3 a:hover { color: var(--accent); }

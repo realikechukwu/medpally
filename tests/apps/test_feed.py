@@ -298,6 +298,16 @@ def test_feed_view_renders_cards(client, user, circulation):
     assert b"A notable finding" in response.content
 
 
+def test_feed_includes_an_accessible_back_to_top_control(client, user):
+    client.force_login(user)
+
+    response = client.get(reverse("feed:list"))
+
+    assert b"data-back-to-top" in response.content
+    assert b'aria-label="Back to top"' in response.content
+    assert b"hidden" in response.content
+
+
 def test_signed_in_feed_includes_progressive_tab_navigation(client, user, circulation):
     """The normal hrefs remain, but JavaScript can swap and cache these tabs."""
     subscribe(user, circulation)
