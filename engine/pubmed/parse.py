@@ -209,7 +209,9 @@ def parse_authors(article: ET.Element, limit: int = 3) -> tuple[str, ...]:
 
 
 def parse_doi(article: ET.Element) -> str:
-    for id_elem in article.findall(".//ArticleIdList/ArticleId"):
+    # Only inspect identifiers for this article. ReferenceList entries have their
+    # own ArticleIdList nodes and may contain DOIs belonging to cited papers.
+    for id_elem in article.findall("./PubmedData/ArticleIdList/ArticleId"):
         if id_elem.attrib.get("IdType") == "doi" and id_elem.text:
             return id_elem.text.strip()
     return ""

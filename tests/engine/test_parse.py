@@ -85,6 +85,22 @@ def test_url_is_derived_from_pmid(pubmed_xml):
     assert a.url == "https://pubmed.ncbi.nlm.nih.gov/41662456/"
 
 
+def test_doi_does_not_leak_from_a_cited_reference():
+    xml = b"""<PubmedArticleSet><PubmedArticle>
+    <MedlineCitation><PMID>123</PMID></MedlineCitation>
+    <PubmedData>
+      <ArticleIdList><ArticleId IdType="pubmed">123</ArticleId></ArticleIdList>
+      <ReferenceList><Reference><ArticleIdList>
+        <ArticleId IdType="doi">10.1000/cited-paper</ArticleId>
+      </ArticleIdList></Reference></ReferenceList>
+    </PubmedData>
+    </PubmedArticle></PubmedArticleSet>"""
+
+    [article] = parse_efetch_response(xml)
+
+    assert article.doi == ""
+
+
 # ---------------------------------------------------------------- dates
 
 
