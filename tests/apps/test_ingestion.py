@@ -30,6 +30,7 @@ def make_article(
     abstract: str = "x" * 250,
     pub_types: tuple[str, ...] = ("Randomized Controlled Trial",),
     mesh: tuple[str, ...] = (),
+    doi: str = "",
     entrez: date = date(2026, 7, 20),
     issn_electronic: str = "",
     nlm_unique_id: str = "",
@@ -45,6 +46,7 @@ def make_article(
         pub_date_raw=entrez.isoformat(),
         pub_date=entrez,
         entrez_date=entrez,
+        doi=doi,
         publication_types=pub_types,
         mesh_terms=mesh,
         category=classify_article(pub_types, bool(abstract), title),
@@ -123,6 +125,18 @@ def test_upsert_creates_paper_with_resolved_journal(circulation: Journal):
     assert stats.papers_created == 1
     assert stats.journals_unresolved == 0
     assert pmids == ["1"]
+
+
+def test_upsert_allows_same_doi_for_distinct_pubmed_records(circulation: Journal):
+    doi = "10.1001/jama.2026.8878"
+
+    stats, pmids = services.upsert_articles(
+        [make_article("1", doi=doi), make_article("2", doi=doi)]
+    )
+
+    assert Paper.objects.filter(doi=doi).count() == 2
+    assert stats.papers_created == 2
+    assert pmids == ["1", "2"]
 
 
 def test_upsert_leaves_journal_null_when_unresolved():

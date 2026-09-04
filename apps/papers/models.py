@@ -90,11 +90,6 @@ class Paper(models.Model):
 
     class Meta:
         ordering = ("-feed_date", "-id")
-        constraints = [
-            models.UniqueConstraint(
-                fields=["doi"], condition=~models.Q(doi=""), name="paper_doi_unique"
-            )
-        ]
         indexes = [
             # Matches the feed's ORDER BY exactly, and is partial so it only
             # covers rows the feed can actually show.
