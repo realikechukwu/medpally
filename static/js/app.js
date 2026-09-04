@@ -328,6 +328,11 @@ function isModifiedNavigation(event) {
     event.shiftKey || event.altKey;
 }
 
+function scrollToPageTop() {
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+}
+
 async function navigateTo(url, options) {
   var settings = options || {};
   if (!navigationScope()) {
@@ -430,6 +435,13 @@ function initTabNavigation() {
     if (url.origin !== window.location.origin) return;
     if (link.closest(".drawer")) closeDrawer();
     event.preventDefault();
+    // A second tap on the tab the reader is already viewing is a quick route
+    // back to its newest papers. Switching between tabs still restores the
+    // reader's saved position for each list.
+    if (url.href === window.location.href) {
+      scrollToPageTop();
+      return;
+    }
     navigateTo(url, { push: true });
   });
   window.addEventListener("popstate", function () {
