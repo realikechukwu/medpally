@@ -16,6 +16,7 @@ from allauth.account.models import EmailAddress
 from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -27,6 +28,14 @@ from apps.common.context_processors import initials
 
 from . import services
 from .forms import FrequencyForm, JournalsForm, ProfileForm
+
+
+def _settings_shell(is_onboarding: bool, title: str) -> dict[str, str]:
+    """Keep settings inside the Account tab without changing onboarding."""
+
+    if is_onboarding:
+        return {}
+    return {"active_tab": "account", "bar_title": title}
 
 
 def redirect_completed_onboarding(view):
@@ -67,26 +76,43 @@ def profile_step(request: HttpRequest, is_onboarding: bool = True) -> HttpRespon
         specialty_before = profile.specialty_id
         form = ProfileForm(request.POST, instance=profile)
         if form.is_valid():
-            form.save()
-            if profile.specialty_id and profile.specialty_id != specialty_before:
-                if is_onboarding:
-                    services.reset_journal_selection_to_specialty_preset(
-                        request.user, profile.specialty
-                    )
-                else:
-                    services.apply_specialty_preset(request.user, profile.specialty)
+            added_journal_count = 0
+            with transaction.atomic():
+                form.save()
+                if profile.specialty_id and profile.specialty_id != specialty_before:
+                    if is_onboarding:
+                        services.reset_journal_selection_to_specialty_preset(
+                            request.user, profile.specialty
+                        )
+                    else:
+                        added_journal_count = services.apply_specialty_preset(
+                            request.user, profile.specialty
+                        )
 
             if is_onboarding:
                 return redirect("accounts:onboarding_journals")
-            messages.success(request, "Profile updated.")
-            return redirect("accounts:settings_profile")
+            if added_journal_count:
+                noun = "journal" if added_journal_count == 1 else "journals"
+                messages.success(
+                    request,
+                    f"Profile updated. {added_journal_count} recommended {noun} added.",
+                    extra_tags="review-journals",
+                )
+            else:
+                messages.success(request, "Profile updated.")
+            return redirect("accounts:account")
     else:
         form = ProfileForm(instance=profile)
 
     return render(
         request,
         "accounts/profile_form.html",
-        {"form": form, "is_onboarding": is_onboarding, "step": 1},
+        {
+            "form": form,
+            "is_onboarding": is_onboarding,
+            "step": 1,
+            **_settings_shell(is_onboarding, "Profile"),
+        },
     )
 
 
@@ -107,12 +133,32 @@ def _grouped_journals(specialty) -> list[dict[str, object]]:
     other = [j for j in all_journals if j.id not in your_specialty_ids and not j.is_general]
     return [
         {
-            "name": "Your specialty",
+            "key": "recommended",
+            "name": f"Recommended for {specialty.name}" if specialty else "Recommended",
+            "description": "Core journals for your specialty",
             "journals": your_specialty,
             "select_all_label": f"{specialty.name} journals" if specialty else "Specialty journals",
+            "is_recommended": True,
+            "is_open": True,
         },
-        {"name": "General medical", "journals": general, "select_all_label": ""},
-        {"name": "Other specialties", "journals": other, "select_all_label": ""},
+        {
+            "key": "general",
+            "name": "General medical",
+            "description": "Broad medical journals",
+            "journals": general,
+            "select_all_label": "",
+            "is_recommended": False,
+            "is_open": False,
+        },
+        {
+            "key": "other",
+            "name": "Other specialties",
+            "description": "Browse the full journal catalogue",
+            "journals": other,
+            "select_all_label": "",
+            "is_recommended": False,
+            "is_open": False,
+        },
     ]
 
 
@@ -135,7 +181,12 @@ def journals_step(request: HttpRequest, is_onboarding: bool = True) -> HttpRespo
             if is_onboarding:
                 return redirect("accounts:onboarding_frequency")
             messages.success(request, "Journals updated.")
-            return redirect("accounts:settings_journals")
+            return redirect("accounts:account")
+        active_ids = {
+            int(journal_id)
+            for journal_id in request.POST.getlist("journals")
+            if journal_id.isdigit()
+        }
     else:
         form = JournalsForm(initial={"journals": active_ids})
 
@@ -148,6 +199,8 @@ def journals_step(request: HttpRequest, is_onboarding: bool = True) -> HttpRespo
             "step": 2,
             "groups": _grouped_journals(profile.specialty),
             "active_ids": active_ids,
+            "selected_count": len(active_ids),
+            **_settings_shell(is_onboarding, "Journals"),
         },
     )
 
@@ -166,22 +219,37 @@ def frequency_step(request: HttpRequest, is_onboarding: bool = True) -> HttpResp
                 profile.save(update_fields=["onboarding_completed_at"])
                 return redirect(reverse("feed:list"))
             messages.success(request, "Preferences updated.")
-            return redirect("accounts:settings_notifications")
+            return redirect("accounts:account")
     else:
         form = FrequencyForm(instance=profile)
 
     return render(
         request,
         "accounts/frequency_form.html",
-        {"form": form, "is_onboarding": is_onboarding, "step": 3},
+        {
+            "form": form,
+            "is_onboarding": is_onboarding,
+            "step": 3,
+            **_settings_shell(is_onboarding, "Notifications"),
+        },
     )
 
 
 @login_required
 def account(request: HttpRequest) -> HttpResponse:
     profile = request.user.profile
-    journal_count = request.user.journal_subscriptions.filter(is_active=True).count()
-    saved_count = request.user.paper_states.filter(saved_at__isnull=False).count()
+    active_journals = list(
+        Journal.objects.filter(
+            is_active=True,
+            subscriptions__user=request.user,
+            subscriptions__is_active=True,
+        ).order_by("display_name")
+    )
+    journal_count = len(active_journals)
+    preview_names = [journal.short_name or journal.display_name for journal in active_journals[:3]]
+    journal_preview = ", ".join(preview_names)
+    if journal_count > len(preview_names):
+        journal_preview = f"{journal_preview} +{journal_count - len(preview_names)} more"
     email_verified = EmailAddress.objects.filter(
         user=request.user, email=request.user.email, verified=True
     ).exists()
@@ -191,7 +259,7 @@ def account(request: HttpRequest) -> HttpResponse:
         {
             "profile": profile,
             "journal_count": journal_count,
-            "saved_count": saved_count,
+            "journal_preview": journal_preview,
             "email_verified": email_verified,
             "initials": initials(profile.full_name, request.user.email),
             "bar_title": "Account",

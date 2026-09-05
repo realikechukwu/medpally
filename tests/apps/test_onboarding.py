@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -55,13 +57,14 @@ def user():
 def test_apply_specialty_preset_subscribes_to_every_default_journal(
     user, cardiology, circulation, jacc
 ):
-    services.apply_specialty_preset(user, cardiology)
+    added_count = services.apply_specialty_preset(user, cardiology)
     active = set(
         UserJournalSubscription.objects.filter(user=user, is_active=True).values_list(
             "journal_id", flat=True
         )
     )
     assert active == {circulation.id, jacc.id}
+    assert added_count == 2
 
 
 def test_apply_specialty_preset_never_reactivates_a_manually_removed_journal(
@@ -77,6 +80,22 @@ def test_apply_specialty_preset_never_reactivates_a_manually_removed_journal(
 
     sub.refresh_from_db()
     assert sub.is_active is False
+
+
+def test_apply_specialty_preset_skips_inactive_catalog_journals(user, cardiology):
+    inactive = Journal.objects.create(
+        slug="retired",
+        pubmed_name="Retired Journal",
+        display_name="Retired Journal",
+        short_name="Retired",
+        is_active=False,
+    )
+    SpecialtyJournal.objects.create(specialty=cardiology, journal=inactive, is_default=True)
+
+    added_count = services.apply_specialty_preset(user, cardiology)
+
+    assert added_count == 0
+    assert not UserJournalSubscription.objects.filter(user=user, journal=inactive).exists()
 
 
 def test_reset_journal_selection_replaces_old_specialty_preset(user, cardiology, circulation, jacc):
@@ -137,6 +156,22 @@ def test_apply_journal_selection_deselect_then_reselect_does_not_resurrect_via_p
 
     jacc_sub = UserJournalSubscription.objects.get(user=user, journal=jacc)
     assert jacc_sub.is_active is False
+
+
+def test_apply_journal_selection_updates_existing_rows_in_one_query(
+    user, cardiology, circulation, jacc
+):
+    services.apply_specialty_preset(user, cardiology)
+
+    with CaptureQueriesContext(connection) as queries:
+        services.apply_journal_selection(user, {circulation.id})
+
+    subscription_updates = [
+        query["sql"]
+        for query in queries.captured_queries
+        if 'UPDATE "accounts_userjournalsubscription"' in query["sql"]
+    ]
+    assert len(subscription_updates) == 1
 
 
 # ---------------------------------------------------------------- legacy prefill
@@ -284,7 +319,7 @@ def test_changing_specialty_during_onboarding_replaces_previous_journals(
     assert active == {spine_journal.id}
 
     response = client.get(reverse("accounts:onboarding_journals"))
-    assert b"Spine Surgery journals" in response.content
+    assert b"Recommended for Spine Surgery" in response.content
     assert b'data-journal-group-toggle="specialty"' in response.content
 
 
@@ -302,10 +337,82 @@ def test_settings_pages_reuse_the_same_forms_without_touching_onboarding_state(
         {"full_name": "New Name", "workplace": "", "specialty": cardiology.id},
     )
     assert response.status_code == 302
-    assert response.url == reverse("accounts:settings_profile")
+    assert response.url == reverse("accounts:account")
     user.profile.refresh_from_db()
     assert user.profile.full_name == "New Name"
     assert user.profile.onboarding_completed_at is not None
+
+
+def test_settings_pages_keep_account_navigation_and_enhance_saves(
+    client, user, cardiology, circulation
+):
+    _onboard(user, cardiology, circulation)
+    client.force_login(user)
+
+    profile = client.get(reverse("accounts:settings_profile"))
+    journals = client.get(reverse("accounts:settings_journals"))
+    notifications = client.get(reverse("accounts:settings_notifications"))
+
+    for response in (profile, journals, notifications):
+        assert response.status_code == 200
+        assert b'id="bottom-nav"' in response.content
+        assert b"data-app-submit" in response.content
+        assert b"data-app-nav" in response.content
+
+
+def test_specialty_change_reports_added_journals_with_review_action(
+    client, user, cardiology, gp, circulation
+):
+    _onboard(user, cardiology, circulation)
+    gp_journal = Journal.objects.create(
+        slug="gp-journal",
+        pubmed_name="GP Journal",
+        display_name="GP Journal",
+        short_name="GPJ",
+    )
+    SpecialtyJournal.objects.create(specialty=gp, journal=gp_journal, is_default=True)
+    client.force_login(user)
+
+    response = client.post(
+        reverse("accounts:settings_profile"),
+        {"full_name": "Dr Jane", "workplace": "", "specialty": gp.id},
+        follow=True,
+    )
+
+    assert b"1 recommended journal added" in response.content
+    assert b"Review journals" in response.content
+    assert reverse("accounts:settings_journals").encode() in response.content
+
+
+def test_journal_settings_offer_search_filters_count_and_reset(
+    client, user, cardiology, circulation
+):
+    _onboard(user, cardiology, circulation)
+    client.force_login(user)
+
+    response = client.get(reverse("accounts:settings_journals"))
+
+    assert b"data-journal-search" in response.content
+    assert b'data-journal-filter="recommended"' in response.content
+    assert b'data-journal-filter="selected"' in response.content
+    assert b'data-journal-filter="all"' in response.content
+    assert b"data-journal-reset" in response.content
+    assert b"Save 1 journal" in response.content
+
+
+def test_settings_journal_and_notification_saves_return_to_account(
+    client, user, cardiology, circulation
+):
+    _onboard(user, cardiology, circulation)
+    client.force_login(user)
+
+    journals = client.post(reverse("accounts:settings_journals"), {"journals": [circulation.id]})
+    notifications = client.post(
+        reverse("accounts:settings_notifications"), {"update_frequency": "daily"}
+    )
+
+    assert journals.url == reverse("accounts:account")
+    assert notifications.url == reverse("accounts:account")
 
 
 # ---------------------------------------------------------------- account page
@@ -328,6 +435,9 @@ def test_account_page_shows_profile_summary(client, user, cardiology, circulatio
     assert b"Dr. Jane Okafor" in response.content
     assert b"Cardiology" in response.content
     assert b"1 selected" in response.content
+    assert b"Circ" in response.content
+    assert b"Reading preferences" in response.content
+    assert b"stat-row" not in response.content
 
 
 def test_account_page_initials_fall_back_to_email_when_no_name(
@@ -340,6 +450,26 @@ def test_account_page_initials_fall_back_to_email_when_no_name(
 
     response = client.get(reverse("accounts:account"))
     assert response.status_code == 200
+
+
+def test_account_page_ignores_subscriptions_to_inactive_journals(
+    client, user, cardiology, circulation
+):
+    _onboard(user, cardiology, circulation)
+    inactive = Journal.objects.create(
+        slug="inactive",
+        pubmed_name="Inactive",
+        display_name="Inactive Journal",
+        short_name="Inactive",
+        is_active=False,
+    )
+    UserJournalSubscription.objects.create(user=user, journal=inactive)
+    client.force_login(user)
+
+    response = client.get(reverse("accounts:account"))
+
+    assert b"1 selected" in response.content
+    assert b"Inactive Journal" not in response.content
 
 
 # ---------------------------------------------------------------- delete account

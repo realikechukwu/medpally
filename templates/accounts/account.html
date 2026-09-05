@@ -1,55 +1,65 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="account-header">
+<section class="account-profile-card" aria-label="Your profile">
   <div class="avatar avatar-lg">{{ initials }}</div>
-  <div>
+  <div class="account-profile-copy">
     <div class="account-name">{{ profile.full_name|default:request.user.email }}</div>
     <div class="account-email">{{ request.user.email }}</div>
+    <div class="account-profile-meta">
+      <span class="account-specialty">{{ profile.specialty.name|default:"Specialty not set" }}</span>
+      {% if profile.workplace %}<span class="account-workplace">{{ profile.workplace }}</span>{% endif %}
+    </div>
   </div>
-</div>
+  <a data-app-nav class="account-edit-link" href="{% url 'accounts:settings_profile' %}">Edit profile</a>
+</section>
 
-<div class="stat-row">
-  <div class="stat">
-    <div class="stat-value">{{ journal_count }}</div>
-    <div class="stat-label">Journals</div>
-  </div>
-  <div class="stat">
-    <div class="stat-value">{{ saved_count }}</div>
-    <div class="stat-label">Saved</div>
-  </div>
-  <div class="stat">
-    <div class="stat-value">{{ profile.specialty.name|default:"Not set" }}</div>
-    <div class="stat-label">Specialty</div>
-  </div>
+<div class="settings-section-heading">
+  <div class="journal-group-title">Reading preferences</div>
+  <p>Control what appears in your personalised feed.</p>
 </div>
-
-<div class="journal-group-title">Preferences</div>
 <div class="settings-group">
-  <a class="settings-row" href="{% url 'accounts:settings_profile' %}">
-    <span class="settings-row-label">Specialty</span>
-    <span class="settings-row-value">
-      {{ profile.specialty.name|default:"Not set" }}
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
+  <a data-app-nav class="settings-row settings-row-rich" href="{% url 'accounts:settings_journals' %}">
+    <span class="settings-row-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 5.5v16M8 7h8M8 11h7"/></svg>
     </span>
-  </a>
-  <a class="settings-row" href="{% url 'accounts:settings_journals' %}">
-    <span class="settings-row-label">Journals</span>
+    <span class="settings-row-copy">
+      <span class="settings-row-label">Journals</span>
+      <span class="settings-row-detail">{% if journal_preview %}{{ journal_preview }}{% else %}Choose journals for your feed{% endif %}</span>
+    </span>
     <span class="settings-row-value">
       {{ journal_count }} selected
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </span>
   </a>
-  <a class="settings-row" href="{% url 'accounts:settings_notifications' %}">
-    <span class="settings-row-label">Update frequency</span>
+  <a data-app-nav class="settings-row settings-row-rich" href="{% url 'accounts:settings_notifications' %}">
+    <span class="settings-row-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+    </span>
+    <span class="settings-row-copy">
+      <span class="settings-row-label">Update frequency</span>
+      <span class="settings-row-detail">How often you want a new roundup.</span>
+    </span>
     <span class="settings-row-value">
       {{ profile.get_update_frequency_display }}
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
     </span>
   </a>
+</div>
+
+<div class="settings-section-heading">
+  <div class="journal-group-title">Account &amp; security</div>
+</div>
+<div class="settings-group">
   {% if email_verified %}
-  <div class="settings-row">
-    <span class="settings-row-label">Email</span>
+  <div class="settings-row settings-row-rich">
+    <span class="settings-row-icon" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+    </span>
+    <span class="settings-row-copy">
+      <span class="settings-row-label">Email</span>
+      <span class="settings-row-detail">{{ request.user.email }}</span>
+    </span>
     <span class="settings-row-value is-verified">
       Verified
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
@@ -58,11 +68,17 @@
   {% else %}
   <form method="post" action="{% url 'accounts:resend_verification' %}" style="margin:0">
     {% csrf_token %}
-    <button type="submit" class="settings-row">
-      <span class="settings-row-label">Email</span>
+    <button type="submit" class="settings-row settings-row-rich">
+      <span class="settings-row-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+      </span>
+      <span class="settings-row-copy">
+        <span class="settings-row-label">Email</span>
+        <span class="settings-row-detail">{{ request.user.email }}</span>
+      </span>
       <span class="settings-row-value">
-        Not verified — resend
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-faint)"><path d="M9 6l6 6-6 6"/></svg>
+        Verify
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
       </span>
     </button>
   </form>
@@ -79,7 +95,7 @@
   </form>
 </div>
 
-<div style="text-align:center">
-  <a href="{% url 'accounts:delete_account_confirm' %}" class="btn-text-danger" style="display:inline-block">Delete account</a>
+<div class="account-danger-link">
+  <a href="{% url 'accounts:delete_account_confirm' %}" class="btn-text-danger">Delete account</a>
 </div>
 {% endblock %}

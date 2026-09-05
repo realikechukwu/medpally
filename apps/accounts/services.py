@@ -6,12 +6,16 @@ lives in one tested place rather than being re-derived at every call site.
 
 from __future__ import annotations
 
+from django.db import transaction
+from django.utils import timezone
+
 from apps.catalog.models import Specialty, SpecialtyJournal
 
 from .models import User, UserJournalSubscription
 
 
-def apply_specialty_preset(user: User, specialty: Specialty) -> None:
+@transaction.atomic
+def apply_specialty_preset(user: User, specialty: Specialty) -> int:
     """Subscribe the user to every default journal in this specialty's preset.
 
     bulk_create(ignore_conflicts=True) is what makes this safe to call more than
@@ -20,20 +24,30 @@ def apply_specialty_preset(user: User, specialty: Specialty) -> None:
     for — active or manually deactivated — is silently skipped, never
     reactivated.
     """
-    journal_ids = SpecialtyJournal.objects.filter(specialty=specialty, is_default=True).values_list(
-        "journal_id", flat=True
+    journal_ids = set(
+        SpecialtyJournal.objects.filter(
+            specialty=specialty, is_default=True, journal__is_active=True
+        ).values_list("journal_id", flat=True)
     )
+    existing_ids = set(
+        UserJournalSubscription.objects.filter(user=user, journal_id__in=journal_ids).values_list(
+            "journal_id", flat=True
+        )
+    )
+    new_ids = journal_ids - existing_ids
     UserJournalSubscription.objects.bulk_create(
         [
             UserJournalSubscription(
                 user=user, journal_id=journal_id, source=UserJournalSubscription.Source.PRESET
             )
-            for journal_id in journal_ids
+            for journal_id in new_ids
         ],
         ignore_conflicts=True,
     )
+    return len(new_ids)
 
 
+@transaction.atomic
 def reset_journal_selection_to_specialty_preset(user: User, specialty: Specialty) -> None:
     """Replace an unfinished onboarding selection with the new specialty preset.
 
@@ -49,6 +63,7 @@ def reset_journal_selection_to_specialty_preset(user: User, specialty: Specialty
     apply_specialty_preset(user, specialty)
 
 
+@transaction.atomic
 def apply_journal_selection(user: User, selected_journal_ids: set[int]) -> None:
     """Reconcile a user's checked journals against their subscription rows.
 
@@ -60,36 +75,37 @@ def apply_journal_selection(user: User, selected_journal_ids: set[int]) -> None:
     """
     existing = {sub.journal_id: sub for sub in UserJournalSubscription.objects.filter(user=user)}
 
-    to_create = []
-    for journal_id in selected_journal_ids:
-        sub = existing.get(journal_id)
-        if sub is None:
-            to_create.append(
-                UserJournalSubscription(
-                    user=user,
-                    journal_id=journal_id,
-                    source=UserJournalSubscription.Source.MANUAL,
-                    is_active=True,
-                )
-            )
-        elif not sub.is_active or sub.source != UserJournalSubscription.Source.MANUAL:
-            sub.is_active = True
-            sub.source = UserJournalSubscription.Source.MANUAL
-            sub.save(update_fields=["is_active", "source", "updated_at"])
+    to_create = [
+        UserJournalSubscription(
+            user=user,
+            journal_id=journal_id,
+            source=UserJournalSubscription.Source.MANUAL,
+            is_active=True,
+        )
+        for journal_id in selected_journal_ids
+        if journal_id not in existing
+    ]
 
     if to_create:
         UserJournalSubscription.objects.bulk_create(to_create)
 
-    to_deactivate = [
-        sub
-        for journal_id, sub in existing.items()
-        if journal_id not in selected_journal_ids and sub.is_active
-    ]
-    for sub in to_deactivate:
-        sub.is_active = False
+    now = timezone.now()
+    to_update = []
+    for journal_id, sub in existing.items():
+        should_be_active = journal_id in selected_journal_ids
+        if (
+            sub.is_active == should_be_active
+            and sub.source == UserJournalSubscription.Source.MANUAL
+        ):
+            continue
+        sub.is_active = should_be_active
         sub.source = UserJournalSubscription.Source.MANUAL
-    if to_deactivate:
-        UserJournalSubscription.objects.bulk_update(to_deactivate, ["is_active", "source"])
+        sub.updated_at = now
+        to_update.append(sub)
+    if to_update:
+        UserJournalSubscription.objects.bulk_update(
+            to_update, ["is_active", "source", "updated_at"]
+        )
 
 
 def next_onboarding_url_name(user: User) -> str:

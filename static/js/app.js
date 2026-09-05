@@ -50,10 +50,12 @@ function initBarTitle() {
 
 // The specialty preset is a useful group on a long journal list.  Its toggle
 // selects every journal in that preset and reflects a partial manual choice.
+var initialisedJournalGroupToggles = new WeakSet();
+
 function initJournalGroupToggles() {
   document.querySelectorAll("[data-journal-group-toggle]").forEach(function (toggle) {
-    if (toggle.dataset.journalGroupInitialised) return;
-    toggle.dataset.journalGroupInitialised = "true";
+    if (initialisedJournalGroupToggles.has(toggle)) return;
+    initialisedJournalGroupToggles.add(toggle);
     var group = toggle.getAttribute("data-journal-group-toggle");
     var journals = document.querySelectorAll('[data-journal-group="' + group + '"]');
     if (!journals.length) return;
@@ -79,6 +81,151 @@ function initJournalGroupToggles() {
   });
 }
 
+// Journal selection should stay easy even as the catalogue grows: search looks
+// across the full list, filters keep the common choices close, and every change
+// updates the count and save action immediately.
+var initialisedJournalPickers = new WeakSet();
+
+function initJournalPickers() {
+  document.querySelectorAll("[data-journal-picker]").forEach(function (picker) {
+    if (initialisedJournalPickers.has(picker)) return;
+    initialisedJournalPickers.add(picker);
+
+    var form = picker.closest("form");
+    var search = picker.querySelector("[data-journal-search]");
+    var clearSearch = picker.querySelector("[data-journal-search-clear]");
+    var reset = picker.querySelector("[data-journal-reset]");
+    var empty = picker.querySelector("[data-journal-empty]");
+    var rows = picker.querySelectorAll("[data-journal-row]");
+    var sections = picker.querySelectorAll("[data-journal-section]");
+    var filters = picker.querySelectorAll("[data-journal-filter]");
+    var checkboxes = form.querySelectorAll('input[name="journals"]');
+    var groupToggles = picker.querySelectorAll("[data-journal-group-toggle]");
+    var activeFilter = "recommended";
+
+    function syncGroupToggles() {
+      groupToggles.forEach(function (toggle) {
+        var group = toggle.getAttribute("data-journal-group-toggle");
+        var journals = form.querySelectorAll('[data-journal-group="' + group + '"]');
+        var selected = Array.prototype.filter.call(journals, function (journal) {
+          return journal.checked;
+        }).length;
+        toggle.checked = selected === journals.length;
+        toggle.indeterminate = selected > 0 && selected < journals.length;
+      });
+    }
+
+    function updatePicker() {
+      var query = search.value.trim().toLocaleLowerCase();
+      var selectedCount = Array.prototype.filter.call(checkboxes, function (checkbox) {
+        return checkbox.checked;
+      }).length;
+      var visibleCount = 0;
+
+      rows.forEach(function (row) {
+        var checkbox = row.querySelector('input[name="journals"]');
+        var matchesSearch = !query || row.dataset.journalSearchText.indexOf(query) >= 0;
+        var matchesFilter = query || activeFilter === "all" ||
+          (activeFilter === "recommended" && row.dataset.journalKind === "recommended") ||
+          (activeFilter === "selected" && checkbox.checked);
+        row.hidden = !(matchesSearch && matchesFilter);
+        row.classList.toggle("is-selected", checkbox.checked);
+        if (!row.hidden) visibleCount += 1;
+      });
+
+      sections.forEach(function (section) {
+        var visibleRows = Array.prototype.filter.call(
+          section.querySelectorAll("[data-journal-row]"),
+          function (row) { return !row.hidden; }
+        ).length;
+        section.hidden = visibleRows === 0;
+        if (query || activeFilter === "selected") section.open = visibleRows > 0;
+        if (activeFilter === "recommended" && section.dataset.journalKind === "recommended") {
+          section.open = true;
+        }
+      });
+
+      filters.forEach(function (filter) {
+        var selected = filter.dataset.journalFilter === activeFilter;
+        filter.classList.toggle("is-active", selected);
+        filter.setAttribute("aria-pressed", selected ? "true" : "false");
+      });
+      picker.querySelectorAll("[data-selected-count]").forEach(function (count) {
+        count.textContent = selectedCount;
+      });
+      picker.querySelectorAll("[data-selected-filter-count]").forEach(function (count) {
+        count.textContent = selectedCount;
+      });
+      picker.querySelectorAll("[data-selected-noun]").forEach(function (noun) {
+        noun.textContent = selectedCount === 1 ? "journal" : "journals";
+      });
+
+      var saveLabel = form.querySelector("[data-journal-save-label]");
+      if (saveLabel) {
+        var prefix = form.querySelector(".settings-save-bar.is-onboarding") ?
+          "Continue with " : "Save ";
+        saveLabel.textContent = prefix + selectedCount +
+          (selectedCount === 1 ? " journal" : " journals");
+      }
+      if (clearSearch) clearSearch.hidden = !query;
+      if (empty) empty.hidden = visibleCount > 0;
+      if (reset) {
+        reset.disabled = Array.prototype.every.call(checkboxes, function (checkbox) {
+          return checkbox.checked === checkbox.hasAttribute("data-journal-recommended");
+        });
+      }
+      syncGroupToggles();
+    }
+
+    filters.forEach(function (filter) {
+      filter.addEventListener("click", function () {
+        activeFilter = filter.dataset.journalFilter;
+        updatePicker();
+      });
+    });
+    checkboxes.forEach(function (checkbox) {
+      checkbox.addEventListener("change", updatePicker);
+    });
+    groupToggles.forEach(function (toggle) {
+      toggle.addEventListener("change", updatePicker);
+    });
+    search.addEventListener("input", function () {
+      if (search.value.trim()) activeFilter = "all";
+      updatePicker();
+    });
+    clearSearch.addEventListener("click", function () {
+      search.value = "";
+      search.focus();
+      updatePicker();
+    });
+    reset.addEventListener("click", function () {
+      checkboxes.forEach(function (checkbox) {
+        checkbox.checked = checkbox.hasAttribute("data-journal-recommended");
+      });
+      search.value = "";
+      activeFilter = "recommended";
+      updatePicker();
+    });
+    updatePicker();
+  });
+}
+
+var initialisedOptionRows = new WeakSet();
+
+function initOptionRows() {
+  document.querySelectorAll(".option-row input[type=radio]").forEach(function (radio) {
+    if (initialisedOptionRows.has(radio)) return;
+    initialisedOptionRows.add(radio);
+    radio.addEventListener("change", function () {
+      var form = radio.closest("form");
+      form.querySelectorAll(".option-row").forEach(function (row) {
+        var input = row.querySelector("input[type=radio]");
+        row.classList.toggle("is-selected", input.checked);
+      });
+    });
+  });
+}
+
 // A flash message is a receipt for something the reader just did, so it takes
 // itself away again instead of sitting under the feed for the rest of the
 // session.
@@ -88,6 +235,9 @@ var MESSAGE_FADE_MS = 400;
 function initFlashMessages() {
   document.querySelectorAll(".messages[data-autodismiss]").forEach(function (list) {
     if (list.dataset.dismissing) return;
+    // A message with a next action should remain available until the reader
+    // acts or navigates away; ordinary receipts still clear themselves.
+    if (list.querySelector(".message-action")) return;
     list.dataset.dismissing = "true";
     window.setTimeout(function () {
       list.classList.add("is-dismissed");
@@ -142,7 +292,7 @@ function initBackToTop() {
 // JavaScript is unavailable, while signed-in readers get instant, cached swaps
 // of the content area.  We deliberately use sessionStorage, not a shared HTTP
 // cache: every page contains a reader's personalised feed and saved papers.
-var NAVIGATION_CACHE_VERSION = "v2";
+var NAVIGATION_CACHE_VERSION = "v4";
 var NAVIGATION_CACHE_TTL_MS = 5 * 60 * 1000;
 var navigationRequest;
 
@@ -204,7 +354,8 @@ function cacheableMainMarkup(main) {
   return clone.outerHTML;
 }
 
-function pageFromDocument(pageDocument) {
+function pageFromDocument(pageDocument, options) {
+  var settings = options || {};
   var main = pageDocument.getElementById("app-main");
   var bottomNav = pageDocument.getElementById("bottom-nav");
   if (!main || !bottomNav) return null;
@@ -212,7 +363,7 @@ function pageFromDocument(pageDocument) {
   var drawerNav = pageDocument.querySelector(".drawer-nav");
   var barTitle = pageDocument.querySelector(".top-bar-title");
   return {
-    main: cacheableMainMarkup(main),
+    main: settings.includeMessages ? main.outerHTML : cacheableMainMarkup(main),
     bottomNav: bottomNav.outerHTML,
     drawerNav: drawerNav ? drawerNav.innerHTML : "",
     barTitle: barTitle ? barTitle.textContent : "",
@@ -253,6 +404,8 @@ function replaceWithMarkup(current, markup) {
 function hydratePage() {
   initBarTitle();
   initJournalGroupToggles();
+  initJournalPickers();
+  initOptionRows();
   initFeedMenu();
   initBackToTop();
   initWeekGroups();
@@ -349,7 +502,7 @@ async function navigateTo(url, options) {
   if (settings.push) window.history.pushState({}, "", url.href);
   var cached = readCachedPage(url);
   if (cached && applyPage(cached)) {
-    restoreScroll(cached.scrollY);
+    restoreScroll(settings.restoreCachedScroll === false ? 0 : cached.scrollY);
     // Keep the rendered page stable while a quiet refresh makes the next
     // visit current. Replacing it a second time would make scrolling jump.
     try {
@@ -384,6 +537,9 @@ function invalidateCachedTabs(tabNames) {
     saved: "/feed/read-later/",
     liked: "/feed/liked/",
     account: "/account/",
+    profile: "/settings/profile/",
+    journals: "/settings/journals/",
+    notifications: "/settings/notifications/",
   };
   var prefix = "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":";
   try {
@@ -399,6 +555,101 @@ function invalidateCachedTabs(tabNames) {
   } catch (error) {
     // Cache invalidation is an optimisation; the server remains authoritative.
   }
+}
+
+function setSubmitPending(button, pending) {
+  if (!button) return;
+  if (pending) {
+    button.dataset.pendingMarkup = button.innerHTML;
+    button.disabled = true;
+    button.classList.add("is-loading");
+    button.setAttribute("aria-busy", "true");
+    button.replaceChildren();
+    var spinner = document.createElement("span");
+    spinner.className = "button-spinner";
+    spinner.setAttribute("aria-hidden", "true");
+    button.appendChild(spinner);
+    button.appendChild(document.createTextNode(button.dataset.pendingLabel || "Saving…"));
+    return;
+  }
+  button.disabled = false;
+  button.classList.remove("is-loading");
+  button.removeAttribute("aria-busy");
+  if (button.dataset.pendingMarkup) button.innerHTML = button.dataset.pendingMarkup;
+}
+
+function showFormFailure(form) {
+  var status = form.querySelector("[data-form-status]");
+  if (!status) return;
+  status.textContent = "We couldn't save that. Check your connection and try again.";
+  status.classList.add("is-error");
+}
+
+async function submitAppForm(form, submitter) {
+  if (form.dataset.submitting) return;
+  form.dataset.submitting = "true";
+  var button = submitter || form.querySelector('button[type="submit"]');
+  var request = new AbortController();
+  if (navigationRequest) navigationRequest.abort();
+  navigationRequest = request;
+  cacheCurrentPage();
+  setSubmitPending(button, true);
+
+  try {
+    var response = await window.fetch(form.action || window.location.href, {
+      method: (form.method || "post").toUpperCase(),
+      body: new FormData(form),
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: request.signal,
+      headers: { "X-MedPally-Navigation": "1" },
+    });
+    if (!response.ok) throw new Error("Settings request failed");
+
+    var responseUrl = new URL(response.url, window.location.href);
+    if (responseUrl.origin !== window.location.origin) {
+      window.location.assign(responseUrl.href);
+      return;
+    }
+    var html = await response.text();
+    var page = pageFromDocument(
+      new DOMParser().parseFromString(html, "text/html"),
+      { includeMessages: true }
+    );
+    if (!page) {
+      window.location.assign(responseUrl.href);
+      return;
+    }
+
+    var invalidations = (form.dataset.cacheInvalidate || "").split(" ").filter(Boolean);
+    invalidateCachedTabs(invalidations);
+    window.history.replaceState({}, "", responseUrl.href);
+    if (!applyPage(page)) {
+      window.location.assign(responseUrl.href);
+      return;
+    }
+    saveCachedPage(responseUrl, snapshotCurrentPage());
+    restoreScroll(0);
+  } catch (error) {
+    if (error.name !== "AbortError") {
+      delete form.dataset.submitting;
+      setSubmitPending(button, false);
+      showFormFailure(form);
+    }
+  } finally {
+    if (navigationRequest === request) navigationRequest = null;
+  }
+}
+
+function initAppFormSubmissions() {
+  if (!navigationScope() || window.medpallyAppFormsInitialised) return;
+  window.medpallyAppFormsInitialised = true;
+  document.addEventListener("submit", function (event) {
+    var form = event.target.closest("form[data-app-submit]");
+    if (!form) return;
+    event.preventDefault();
+    submitAppForm(form, event.submitter);
+  });
 }
 
 function prefetchFrequentlyUsedTabs() {
@@ -429,7 +680,7 @@ function initTabNavigation() {
   cacheCurrentPage();
 
   document.addEventListener("click", function (event) {
-    var link = event.target.closest("a[data-tab-nav]");
+    var link = event.target.closest("a[data-tab-nav], a[data-app-nav]");
     if (!link || isModifiedNavigation(event) || link.target) return;
     var url = new URL(link.href, window.location.href);
     if (url.origin !== window.location.origin) return;
@@ -442,7 +693,10 @@ function initTabNavigation() {
       scrollToPageTop();
       return;
     }
-    navigateTo(url, { push: true });
+    navigateTo(url, {
+      push: true,
+      restoreCachedScroll: link.hasAttribute("data-tab-nav"),
+    });
   });
   window.addEventListener("popstate", function () {
     navigateTo(new URL(window.location.href), { fromHistory: true, push: false });
@@ -582,6 +836,8 @@ document.addEventListener("DOMContentLoaded", function () {
   initDrawer();
   initBarTitle();
   initJournalGroupToggles();
+  initJournalPickers();
+  initOptionRows();
   initFeedMenu();
   initBackToTop();
   initWeekGroups();
@@ -589,5 +845,6 @@ document.addEventListener("DOMContentLoaded", function () {
   applyWeekState();
   initAuthSubmitLoading();
   initTabNavigation();
+  initAppFormSubmissions();
   initServiceWorker();
 });

@@ -6,7 +6,7 @@
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
 </a>
 {% else %}
-<a href="{% url 'accounts:account' %}" class="back-btn" aria-label="Back to account">
+<a data-app-nav href="{% url 'accounts:account' %}" class="back-btn" aria-label="Back to account">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
 </a>
 {% endif %}
@@ -21,7 +21,7 @@
   <h1 class="page-title" style="margin-bottom:16px">Notifications</h1>
 {% endif %}
 
-<form method="post">
+<form method="post"{% if not is_onboarding %} data-app-submit data-cache-invalidate="account notifications"{% endif %}>
   {% csrf_token %}
   {{ form.non_field_errors }}
   {{ form.update_frequency.errors }}
@@ -41,6 +41,7 @@
     </label>
   {% endfor %}
 
-  <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px">{% if is_onboarding %}Finish setup{% else %}Save{% endif %}</button>
+  <div class="form-status" data-form-status role="status" aria-live="polite"></div>
+  <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px" data-pending-label="Saving…">{% if is_onboarding %}Finish setup{% else %}Save changes{% endif %}</button>
 </form>
 {% endblock %}

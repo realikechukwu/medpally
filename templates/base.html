@@ -38,7 +38,12 @@
   <main id="app-main" class="app-main{% if active_tab %} has-bottom-nav{% endif %}{% block content_class %}{% endblock %}" tabindex="-1">
     {% if messages %}
     <ul class="messages" data-autodismiss>
-      {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+      {% for message in messages %}
+      <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>
+        <span>{{ message }}</span>
+        {% if "review-journals" in message.tags %}<a data-app-nav class="message-action" href="{% url 'accounts:settings_journals' %}">Review journals</a>{% endif %}
+      </li>
+      {% endfor %}
     </ul>
     {% endif %}
 
