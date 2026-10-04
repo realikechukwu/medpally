@@ -407,11 +407,28 @@ function navigationScope() {
   return document.body.dataset.navigationUser || "";
 }
 
-function navigationCacheKey(url) {
+// The stylesheet and scripts a document was built against. Production names
+// them by content hash, so this changes with every deploy that touches them.
+function assetVersion(pageDocument) {
+  return Array.prototype.map.call(
+    pageDocument.querySelectorAll('head link[rel="stylesheet"], head script[src]'),
+    function (node) { return node.getAttribute("href") || node.getAttribute("src"); }
+  ).join(" ");
+}
+
+var ASSET_VERSION = assetVersion(document);
+
+// Markup saved under one deploy's assets is never shown under another's.
+function navigationCachePrefix() {
   var scope = navigationScope();
   if (!scope) return "";
-  return "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":" +
-    url.pathname + url.search;
+  return "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + ASSET_VERSION + ":" +
+    scope + ":";
+}
+
+function navigationCacheKey(url) {
+  var prefix = navigationCachePrefix();
+  return prefix ? prefix + url.pathname + url.search : "";
 }
 
 function safeSessionGet(key) {
@@ -617,7 +634,11 @@ async function fetchPage(url, signal) {
   if (response.redirected || response.url !== url.href) return { redirect: response.url };
   if (!response.ok) throw new Error("Navigation request failed");
   var html = await response.text();
-  var page = pageFromDocument(new DOMParser().parseFromString(html, "text/html"));
+  var pageDocument = new DOMParser().parseFromString(html, "text/html");
+  // A tab left open across a deploy still has the old stylesheet and script,
+  // which do not know the new markup, so the next screen is loaded for real.
+  if (assetVersion(pageDocument) !== ASSET_VERSION) return { redirect: url.href };
+  var page = pageFromDocument(pageDocument);
   // A page outside the app shell (sign-in, onboarding) is loaded for real.
   return page ? { page: page } : { redirect: url.href };
 }
@@ -811,9 +832,8 @@ var INVALIDATION_PATHS = {
 };
 
 function invalidateCachedTabs(tabNames) {
-  var scope = navigationScope();
-  if (!scope) return;
-  var prefix = "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":";
+  var prefix = navigationCachePrefix();
+  if (!prefix) return;
   try {
     for (var index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
       var key = window.sessionStorage.key(index);
