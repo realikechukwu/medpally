@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from apps.accounts.models import UserJournalSubscription
 from apps.catalog.models import Journal, JournalAlias, Specialty, SpecialtyJournal
+from apps.feed.models import UserPaperState
 from apps.papers.models import Paper, PaperSpecialty, PaperSummary
 from engine import classify
 from engine.pubmed.models import FetchedArticle, JournalIdentity
@@ -541,23 +542,28 @@ _CATEGORY_RANK = Case(
 def select_papers_for_summary(limit: int) -> list[Paper]:
     """The summarisation worklist, Django-side equivalent of rank_summary_candidates.
 
-    Ordering matches the engine exactly: priority study designs first, then
-    other priority-category papers, then standard ones. A paper with no
-    specialty link would never be visible in any feed, so it is excluded here
-    rather than spending budget summarising something nobody can see — except
-    a paper a reader shared in, which someone has asked to see by definition.
-    That clause is also the retry path when its immediate summary fails.
+    A paper with no specialty link would never be visible in any feed, so it
+    is excluded here rather than spending budget summarising something nobody
+    can see — except a paper a reader added from outside their feed, which
+    someone has asked to see by definition. That covers papers ingestion
+    stored earlier with no specialty match, not only ones the share created,
+    and it is the retry path when the immediate summary fails.
+
+    Added papers go first, since a reader is waiting on each one. After them
+    the ordering matches the engine exactly: priority study designs first,
+    then other priority-category papers, then standard ones.
     """
     has_specialty = PaperSpecialty.objects.filter(paper=OuterRef("pk"))
+    added_by_reader = UserPaperState.objects.filter(paper=OuterRef("pk"), external_at__isnull=False)
     qs = (
         Paper.objects.filter(
             summary_status__in=[Paper.SummaryStatus.PENDING, Paper.SummaryStatus.FAILED],
             summary_attempts__lt=MAX_SUMMARY_ATTEMPTS,
         )
         .exclude(abstract="")
-        .filter(Q(Exists(has_specialty)) | Q(is_external=True))
-        .annotate(_cat_rank=_CATEGORY_RANK)
-        .order_by("-is_priority_study", "_cat_rank", "-feed_date")
+        .annotate(_added=Exists(added_by_reader), _cat_rank=_CATEGORY_RANK)
+        .filter(Q(Exists(has_specialty)) | Q(_added=True))
+        .order_by("-_added", "-is_priority_study", "_cat_rank", "-feed_date")
     )
     return list(qs[:limit])
 

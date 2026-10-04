@@ -207,6 +207,42 @@ def test_a_known_paper_outside_your_feed_is_external_for_you_only(
     assert not paper.is_external
 
 
+def unmatched_paper(journal: Journal, pmid: str = "456") -> Paper:
+    """A general-journal paper ingestion stored without matching any specialty."""
+    paper = make_paper(
+        pmid,
+        journal=journal,
+        feed_date=date(2026, 9, 18),
+        summary_status=Paper.SummaryStatus.PENDING,
+    )
+    paper.summary.delete()
+    return paper
+
+
+def test_a_known_paper_no_feed_carries_is_summarised_when_added(
+    client, user, gut, pubmed, summarised, django_capture_on_commit_callbacks
+):
+    paper = unmatched_paper(gut)
+    client.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        client.post(reverse("feed:add_paper"), {"pmid": paper.pmid})
+
+    assert summarised == [paper.pk]
+
+
+def test_saving_a_summarised_paper_starts_no_summary(
+    client, user, gut, pubmed, summarised, django_capture_on_commit_callbacks
+):
+    paper = make_paper("456", journal=gut, feed_date=date(2026, 9, 1))
+    client.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        client.post(reverse("feed:add_paper"), {"pmid": paper.pmid})
+
+    assert summarised == []
+
+
 def test_sharing_a_dismissed_paper_brings_it_back(client, user, circulation, pubmed):
     paper = make_paper("123", journal=circulation, feed_date=date(2026, 9, 1))
     UserPaperState.objects.create(user=user, paper=paper, dismissed_at=timezone.now())
@@ -325,6 +361,42 @@ def test_ingestion_finding_a_shared_paper_makes_it_a_feed_paper(user):
 
     paper.refresh_from_db()
     assert not paper.is_external
+
+
+def test_a_known_paper_a_reader_added_is_summarised_by_the_nightly_run(user, gut):
+    paper = unmatched_paper(gut)
+    assert paper not in ingestion.select_papers_for_summary(10)
+
+    now = timezone.now()
+    UserPaperState.objects.create(user=user, paper=paper, saved_at=now, external_at=now)
+
+    assert paper in ingestion.select_papers_for_summary(10)
+
+
+def test_a_shared_paper_ingestion_later_finds_is_still_summarised(user):
+    paper = external_paper(user)
+
+    ingestion.upsert_articles([shared_article()])
+
+    assert paper in ingestion.select_papers_for_summary(10)
+
+
+def test_papers_readers_added_are_summarised_first(user, circulation, gut):
+    feed_paper = make_paper(
+        "123",
+        journal=circulation,
+        feed_date=date(2026, 10, 3),
+        summary_status=Paper.SummaryStatus.PENDING,
+        is_priority_study=True,
+    )
+    feed_paper.summary.delete()
+    ingestion.link_specialties_for_papers([feed_paper.pmid])
+    added = unmatched_paper(gut)
+    now = timezone.now()
+    UserPaperState.objects.create(user=user, paper=added, saved_at=now, external_at=now)
+
+    assert ingestion.select_papers_for_summary(1) == [added]
+    assert ingestion.select_papers_for_summary(10) == [added, feed_paper]
 
 
 def test_external_papers_are_never_featured(user, cardiology, circulation):

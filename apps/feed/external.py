@@ -148,7 +148,9 @@ def save_shared_paper(user: User, pmid: str) -> SavedShare:
             state.external_at = state.external_at or now
         state.save(update_fields=["saved_at", "external_at", "updated_at"])
 
-    if paper.is_external and paper.summary_status in {
+    # Not only papers this share stored: one ingestion kept earlier with no
+    # specialty match has no feed to summarise it for, so it waits on this too.
+    if state.external_at is not None and paper.summary_status in {
         Paper.SummaryStatus.PENDING,
         Paper.SummaryStatus.FAILED,
     }:
