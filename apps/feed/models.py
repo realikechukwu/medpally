@@ -30,6 +30,9 @@ class UserPaperState(models.Model):
     liked_at = models.DateTimeField(null=True, blank=True)
     searched_at = models.DateTimeField(null=True, blank=True)
     dismissed_at = models.DateTimeField(null=True, blank=True)
+    # The reader brought this paper in from outside their feed (a shared or
+    # pasted link), which is what marks it External in their Saved list.
+    external_at = models.DateTimeField(null=True, blank=True)
 
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -4,36 +4,41 @@
 
 {% block nav_title %}Your feed{% endblock %}
 
-{% block nav_trailing %}
 {% comment %}
-  Filter and sort live behind one button in the bar, the way Mail and Files
-  keep list options out of the list. The glyph fills in while anything other
-  than the default view is applied, so a filtered feed never passes for the
-  whole one.
+  A tab's root screen has nothing in its bar until the large title scrolls
+  away, so the bar overlays the page instead of holding an empty strip above
+  the title.
 {% endcomment %}
-<details class="menu" data-menu>
-  <summary class="nav-icon-btn{% if filters.design or filters.sort == 'pub' %} is-active{% endif %}" aria-label="Filter and sort">
-    <svg class="nav-icon-outline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M7.5 9.5h9M9.2 12.5h5.6M10.8 15.5h2.4"/></svg>
-    <svg class="nav-icon-filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20ZM7.5 8.7a.8.8 0 0 0 0 1.6h9a.8.8 0 0 0 0-1.6h-9Zm1.7 3a.8.8 0 0 0 0 1.6h5.6a.8.8 0 0 0 0-1.6H9.2Zm1.6 3a.8.8 0 0 0 0 1.6h2.4a.8.8 0 0 0 0-1.6h-2.4Z"/></svg>
-  </summary>
-  <div class="menu-panel menu-panel-end" role="menu">
-    <div class="menu-section-title">Study design</div>
-    {% for value, label in design_choices %}
-    <a role="menuitemradio" aria-checked="{% if filters.design == value or not filters.design and not value %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring design=value|default:None cursor=None %}">
-      <span class="menu-check" aria-hidden="true"></span>{{ label }}
-    </a>
-    {% endfor %}
-    <div class="menu-section-title">Sort by</div>
-    <a role="menuitemradio" aria-checked="{% if filters.sort != 'pub' %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring sort='feed' cursor=None %}"><span class="menu-check" aria-hidden="true"></span>Feed date</a>
-    <a role="menuitemradio" aria-checked="{% if filters.sort == 'pub' %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring sort='pub' cursor=None %}"><span class="menu-check" aria-hidden="true"></span>Publication date</a>
-  </div>
-</details>
-{% endblock %}
+{% block nav_bar_class %} is-overlay{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <p class="page-eyebrow">{% now "l j F" %}</p>
-  <h1 class="page-title">Your feed</h1>
+  <div class="page-title-row">
+    <h1 class="page-title">Your feed</h1>
+    {% comment %}
+      Filter and sort sit beside the title, the way the App Store keeps your
+      account beside "Today". The button fills in while anything other than
+      the default view is applied, so a filtered feed never passes for the
+      whole one.
+    {% endcomment %}
+    <details class="menu" data-menu>
+      <summary class="title-action-btn{% if filters.design or filters.sort == 'pub' %} is-active{% endif %}" aria-label="Filter and sort">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M17.5 7H20M4 17h2.5M11 17h9"/><circle cx="15" cy="7" r="2.3"/><circle cx="8.8" cy="17" r="2.3"/></svg>
+      </summary>
+      <div class="menu-panel menu-panel-end" role="menu">
+        <div class="menu-section-title">Study design</div>
+        {% for value, label in design_choices %}
+        <a role="menuitemradio" aria-checked="{% if filters.design == value or not filters.design and not value %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring design=value|default:None cursor=None %}">
+          <span class="menu-check" aria-hidden="true"></span>{{ label }}
+        </a>
+        {% endfor %}
+        <div class="menu-section-title">Sort by</div>
+        <a role="menuitemradio" aria-checked="{% if filters.sort != 'pub' %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring sort='feed' cursor=None %}"><span class="menu-check" aria-hidden="true"></span>Feed date</a>
+        <a role="menuitemradio" aria-checked="{% if filters.sort == 'pub' %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring sort='pub' cursor=None %}"><span class="menu-check" aria-hidden="true"></span>Publication date</a>
+      </div>
+    </details>
+  </div>
   {% if request.user.profile.specialty %}<p class="page-subtitle">{{ request.user.profile.specialty.name }}</p>{% endif %}
 
   <nav class="segmented" aria-label="Feed view">

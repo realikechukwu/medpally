@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from django.conf import settings
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Case, Exists, IntegerField, OuterRef, Q, Subquery, When
 from django.utils import timezone
 
@@ -147,6 +147,9 @@ class IngestStats:
 # summary_status (and its attempts/error), and is_visible: a re-fetched paper
 # must never lose a summary, bounce back to the top of the feed, or have an
 # admin's kill switch silently reverted.
+#
+# is_external *is* refreshed, always to False: a paper a reader shared in that
+# ingestion then finds on its own has become an ordinary feed paper.
 _UPSERT_UPDATE_FIELDS = [
     "doi",
     "title",
@@ -163,6 +166,7 @@ _UPSERT_UPDATE_FIELDS = [
     "category",
     "is_priority_study",
     "is_rct",
+    "is_external",
     "updated_at",
 ]
 
@@ -246,6 +250,27 @@ def upsert_articles(articles: Sequence[FetchedArticle]) -> tuple[IngestStats, li
     stats.papers_created = sum(1 for p in pmids if p not in existing_pmids)
     stats.papers_updated = sum(1 for p in pmids if p in existing_pmids)
     return stats, pmids
+
+
+def store_shared_article(article: FetchedArticle) -> Paper:
+    """Persist one article a reader shared in, marked external.
+
+    Built exactly as ingestion builds a paper, so the summariser, journal
+    covers and specialty links all treat it the same. Category is kept even
+    when it is EXCLUDED: ingestion drops those as noise, but a reader who
+    shares an editorial wants that editorial.
+    """
+    journal = resolve_journal(article.journal, article.journal.best_name)
+    paper = _paper_from_article(article, journal)
+    paper.is_external = True
+    try:
+        with transaction.atomic():
+            paper.save()
+    except IntegrityError:
+        # Someone else stored the same PMID between our lookup and this save.
+        return Paper.objects.get(pmid=article.pmid)
+    link_specialties_for_papers([paper.pmid])
+    return paper
 
 
 # ---------------------------------------------------------------- specialty linking
@@ -519,7 +544,9 @@ def select_papers_for_summary(limit: int) -> list[Paper]:
     Ordering matches the engine exactly: priority study designs first, then
     other priority-category papers, then standard ones. A paper with no
     specialty link would never be visible in any feed, so it is excluded here
-    rather than spending budget summarising something nobody can see.
+    rather than spending budget summarising something nobody can see — except
+    a paper a reader shared in, which someone has asked to see by definition.
+    That clause is also the retry path when its immediate summary fails.
     """
     has_specialty = PaperSpecialty.objects.filter(paper=OuterRef("pk"))
     qs = (
@@ -528,7 +555,7 @@ def select_papers_for_summary(limit: int) -> list[Paper]:
             summary_attempts__lt=MAX_SUMMARY_ATTEMPTS,
         )
         .exclude(abstract="")
-        .filter(Exists(has_specialty))
+        .filter(Q(Exists(has_specialty)) | Q(is_external=True))
         .annotate(_cat_rank=_CATEGORY_RANK)
         .order_by("-is_priority_study", "_cat_rank", "-feed_date")
     )

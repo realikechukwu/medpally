@@ -44,6 +44,8 @@ def feed_queryset(user: User) -> QuerySet[Paper]:
     qs = Paper.objects.filter(
         is_visible=True,
         summary_status=Paper.SummaryStatus.OK,
+        # Shared-in papers belong to the Saved lists of whoever added them.
+        is_external=False,
         journal_id__in=Subquery(subscribed_journal_ids),
     ).select_related("journal", "summary")
 
@@ -352,15 +354,17 @@ def _get_collection_page(
     timestamp_field: str,
     cursor: str | None = None,
     page_size: int | None = None,
+    external_only: bool = False,
 ) -> CollectionPage:
     if timestamp_field not in {"saved_at", "liked_at"}:
         raise ValueError(f"Unsupported paper collection: {timestamp_field}")
 
     page_size = page_size or settings.FEED_PAGE_SIZE
-    qs = (
-        UserPaperState.objects.filter(user=user, **{f"{timestamp_field}__isnull": False})
-        .select_related("paper", "paper__journal", "paper__summary")
-        .order_by(f"-{timestamp_field}", "-paper_id")
+    qs = UserPaperState.objects.filter(user=user, **{f"{timestamp_field}__isnull": False})
+    if external_only:
+        qs = qs.filter(external_at__isnull=False)
+    qs = qs.select_related("paper", "paper__journal", "paper__summary").order_by(
+        f"-{timestamp_field}", "-paper_id"
     )
 
     decoded = _decode_collection_cursor(cursor) if cursor else None
@@ -393,6 +397,15 @@ def get_liked_page(
 ) -> CollectionPage:
     return _get_collection_page(
         user, timestamp_field="liked_at", cursor=cursor, page_size=page_size
+    )
+
+
+def get_external_page(
+    user: User, *, cursor: str | None = None, page_size: int | None = None
+) -> CollectionPage:
+    """Saved papers the reader brought in from outside their feed."""
+    return _get_collection_page(
+        user, timestamp_field="saved_at", cursor=cursor, page_size=page_size, external_only=True
     )
 
 

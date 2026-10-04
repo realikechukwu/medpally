@@ -28,6 +28,7 @@ def gather_candidates(specialty: Specialty, week_start: date) -> list[FeaturedCa
             feed_date__lt=week_start,
             is_visible=True,
             summary_status=Paper.SummaryStatus.OK,
+            is_external=False,
         )
         .exclude(id__in=excluded)
         .select_related("journal", "summary")

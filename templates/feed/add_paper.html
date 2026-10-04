@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Add a paper — {{ SITE_NAME }}{% endblock %}
+
+{% block nav_leading %}{% url 'feed:read_later' as saved_url %}{% include "_nav_back.html" with href=saved_url label="Saved" %}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Add a paper</h1>
+  <p class="page-subtitle">Paste a PubMed or journal link, a DOI or a PMID.</p>
+
+  <form method="get" action="{% url 'feed:add_paper' %}" class="search-bar" role="search" data-app-search>
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13.5a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.2 1.2"/><path d="M14 10.5a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.2-1.2"/></svg>
+    <input type="search" name="q" value="{{ query }}" placeholder="Link, DOI or PMID" enterkeyhint="search" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Paper link, DOI or PMID"{% if not query %} autofocus{% endif %}>
+    <button type="submit" class="search-bar-submit" aria-label="Find paper" title="Find paper">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </button>
+  </form>
+</div>
+
+{% if error %}
+<div class="add-paper-message is-error" role="alert">{{ error }}</div>
+{% endif %}
+
+{% if found %}
+<h2 class="list-section-title">{% if found.in_medpally %}Found in {{ SITE_NAME }}{% else %}Found on PubMed{% endif %}</h2>
+<div class="inset-list">
+  <div class="inset-row add-paper-preview">
+    <span class="inset-row-copy">
+      <span class="add-paper-source">{{ found.journal_name }}{% if found.published %} · {{ found.published|date:"j M Y" }}{% endif %}</span>
+      <span class="add-paper-title">{{ found.title }}</span>
+      <span class="add-paper-status">
+        {% if found.already_saved %}Already in your Saved.
+        {% elif found.in_feed %}This paper is in your feed.
+        {% else %}Not in your feed, so it will be saved as External.{% if not found.in_medpally %} We'll write its summary straight away.{% endif %}
+        {% endif %}
+      </span>
+    </span>
+  </div>
+</div>
+
+{% if found.already_saved %}
+<a data-app-nav class="btn btn-tinted btn-block form-submit" href="{% url 'paper_detail' found.pmid %}?from=saved">Open paper</a>
+{% else %}
+<form method="post" action="{% url 'feed:add_paper' %}" data-app-submit data-cache-invalidate="saved external account">
+  {% csrf_token %}
+  <input type="hidden" name="pmid" value="{{ found.pmid }}">
+  <div class="form-status" data-form-status role="status" aria-live="polite"></div>
+  <button type="submit" class="btn btn-primary btn-block form-submit" data-pending-label="Saving…">Save to {{ SITE_NAME }}</button>
+</form>
+{% endif %}
+{% endif %}
+
+{% if not found %}
+<p class="list-section-footer add-paper-tip">On Android, once {{ SITE_NAME }} is installed, you can share an article straight here from your browser's share menu.</p>
+{% endif %}
+{% endblock %}

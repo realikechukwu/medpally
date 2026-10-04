@@ -188,6 +188,13 @@ body:not(.has-app-chrome) .app-main { padding-top: calc(8px + env(safe-area-inse
   box-shadow: 0 0.5px 0 var(--separator);
 }
 html:has(#app-main.grouped) .nav-bar.is-scrolled { background: var(--bar-bg-grouped); }
+/* A tab's root screen keeps its actions beside the large title, so its bar
+   is empty until content scrolls under it. It floats over the page rather
+   than holding an empty strip above the title, and lets taps through while
+   it is still transparent. */
+.nav-bar.is-overlay { margin-bottom: calc(-1 * var(--nav-bar-height)); }
+.nav-bar.is-overlay:not(.is-scrolled) { pointer-events: none; }
+.nav-bar.is-overlay ~ .app-main { padding-top: 10px; }
 
 .nav-bar-inner {
   position: relative; display: flex; align-items: center;
@@ -221,9 +228,6 @@ html:has(#app-main.grouped) .nav-bar.is-scrolled { background: var(--bar-bg-grou
 }
 .nav-icon-btn::-webkit-details-marker { display: none; }
 .nav-icon-btn:active { opacity: 0.35; }
-.nav-icon-btn .nav-icon-filled,
-.nav-icon-btn.is-active .nav-icon-outline { display: none; }
-.nav-icon-btn.is-active .nav-icon-filled { display: block; }
 
 /* Onboarding and sign-in screens have no bar, so their back link sits in the
    page and looks like the bar's. */
@@ -245,6 +249,22 @@ html:has(#app-main.grouped) .nav-bar.is-scrolled { background: var(--bar-bg-grou
   color: var(--label);
 }
 .page-subtitle { margin: 2px 0 0; font-size: 15px; line-height: 20px; color: var(--label-2); }
+.page-title-row { display: flex; align-items: center; gap: 12px; }
+.page-title-row .page-title { flex: 1; min-width: 0; }
+/* A round tinted action beside a large title, like the App Store's account
+   button. Filled while it has something applied (a filter). */
+.title-action-btn {
+  position: relative; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--tint-soft); color: var(--tint); cursor: pointer; list-style: none;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s var(--ease-ios);
+}
+.title-action-btn::-webkit-details-marker { display: none; }
+.title-action-btn::after { content: ""; position: absolute; inset: -4px; }
+.title-action-btn:active { transform: scale(0.9); }
+.title-action-btn:hover { color: var(--tint); }
+.title-action-btn.is-active, .title-action-btn.is-active:hover { background: var(--tint-fill); color: #fff; }
 .wizard-step {
   margin: 0 0 4px; font-size: 13px; font-weight: 600; color: var(--tint);
   letter-spacing: 0.04em; text-transform: uppercase;
@@ -292,7 +312,7 @@ html:has(#app-main.grouped) .nav-bar.is-scrolled { background: var(--bar-bg-grou
 .menu-panel {
   position: absolute; z-index: 40; top: calc(100% + 4px);
   min-width: 240px; max-width: min(300px, calc(100vw - 24px));
-  border-radius: 13px; overflow: hidden;
+  border-radius: 13px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   background: var(--menu-bg);
   -webkit-backdrop-filter: saturate(180%) blur(30px);
   backdrop-filter: saturate(180%) blur(30px);
@@ -412,6 +432,9 @@ html:has(#app-main.grouped) .nav-bar.is-scrolled { background: var(--bar-bg-grou
   background: var(--green-soft); color: var(--green);
   font-size: 11px; font-weight: 700; line-height: 14px; letter-spacing: 0.01em; white-space: nowrap;
 }
+/* A paper the reader brought in from outside their feed. */
+.badge-external { background: var(--fill-3); color: var(--label-2); }
+.summary-pending { color: var(--label-2); font-style: italic; }
 /* Featured repeats on every pick, so it's a mark rather than a second word
    badge — the design label is what the eye is actually scanning for. */
 .featured-star { display: inline-flex; align-items: center; flex-shrink: 0; color: #F5A623; }
@@ -500,6 +523,17 @@ html:has(#app-main.grouped) .nav-bar.is-scrolled { background: var(--bar-bg-grou
 .summary-disclaimer {
   margin: 4px 0 20px; color: var(--label-2); font-size: 12px; font-style: italic; line-height: 1.4;
 }
+.detail-pending {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 20px; padding: 16px;
+  border-radius: 14px; background: var(--bg-secondary); color: var(--label-2);
+  font-size: 15px; line-height: 20px;
+}
+.detail-pending-spinner {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--fill); border-top-color: var(--tint);
+  animation: button-spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .detail-pending-spinner { animation: none; } }
 .detail-actions { display: flex; gap: 10px; margin: 0 0 12px; }
 .detail-actions .action-form { flex: 1; }
 .detail-actions .icon-btn {
@@ -786,6 +820,17 @@ a.inset-row:active, button.inset-row:active, label.inset-row:active { background
   background: var(--tint-fill); color: #fff; cursor: pointer;
 }
 .search-bar-submit:active { opacity: 0.7; }
+
+.add-paper-message {
+  margin: 0 0 14px; padding: 12px 14px; border-radius: 12px;
+  background: var(--bg-secondary); color: var(--label); font-size: 15px; line-height: 20px;
+}
+.add-paper-message.is-error { background: var(--red-soft); }
+.add-paper-preview { align-items: flex-start; padding-top: 14px; padding-bottom: 14px; }
+.add-paper-source { font-size: 13px; line-height: 18px; color: var(--label-2); }
+.add-paper-title { margin: 3px 0 6px; font-size: 17px; line-height: 22px; font-weight: 600; color: var(--label); }
+.add-paper-status { font-size: 13px; line-height: 18px; color: var(--tint); }
+.add-paper-tip { margin-top: 18px; }
 
 .recent-searches { margin-top: 8px; }
 .recent-searches .list-section-title { margin-left: 16px; }

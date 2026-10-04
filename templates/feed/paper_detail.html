@@ -35,11 +35,19 @@
       <div class="card-journal">{{ paper.journal.display_name|default:paper.journal_name_raw }}</div>
       <div class="card-date">{{ paper.feed_date }}</div>
     </div>
-    <div class="card-badges">{% if paper.is_rct %}<span class="badge">RCT</span>{% elif paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}</div>
+    <div class="card-badges">{% if paper.is_rct %}<span class="badge">RCT</span>{% elif paper.summary.study_type %}<span class="badge">{{ paper.summary.study_type }}</span>{% endif %}{% if state.external_at %}<span class="badge badge-external" title="Added from outside your feed">External</span>{% endif %}</div>
   </div>
 
   <h1 class="detail-title" data-title-anchor>{{ paper.title }}</h1>
 
+  {% comment %}
+    A paper someone shared in may not have its note yet. While it is being
+    written the slot re-fetches this page every few seconds and swaps itself
+    for the fresh copy; once the note exists the new slot carries no trigger,
+    so the polling stops by itself.
+  {% endcomment %}
+  <div id="summary-slot"{% if paper.summary_status == "pending" %} hx-get="{{ request.get_full_path }}" hx-trigger="every 6s" hx-select="#summary-slot" hx-swap="outerHTML"{% endif %}>
+  {% if paper.summary_status == "ok" %}
   {% with summary=paper.summary %}
   <dl class="detail-summary">
     <div class="detail-section">
@@ -63,6 +71,17 @@
   {% endwith %}
 
   <p class="summary-disclaimer">AI-generated from the PubMed abstract. Verify important details in the original abstract and full paper.</p>
+  {% elif paper.summary_status == "pending" %}
+  <div class="detail-pending" role="status">
+    <span class="detail-pending-spinner" aria-hidden="true"></span>
+    <span>Writing the summary. It usually takes under a minute, and this page will update by itself.</span>
+  </div>
+  {% elif paper.summary_status == "failed" %}
+  <div class="detail-pending" role="status">We couldn't write the summary yet. We'll try again tonight; meanwhile the abstract is on PubMed.</div>
+  {% else %}
+  <div class="detail-pending" role="status">There's no AI summary for this paper: its PubMed record has no abstract long enough to work from.</div>
+  {% endif %}
+  </div>
 
   {% if request.user.is_authenticated %}
   <div class="detail-actions">

@@ -13,6 +13,15 @@
   "lang": "en-GB",
   "dir": "ltr",
   "categories": ["medical", "education", "news"],
+  "share_target": {
+    "action": "{% url 'feed:add_paper' %}",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
   "icons": [
     {
       "src": "{% static 'img/brand/icon-192.png' %}",

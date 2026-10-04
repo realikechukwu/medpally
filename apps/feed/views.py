@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import re
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import Http404, HttpRequest, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.papers.models import Paper
 
-from . import services
+from . import external, services
 from .filters import DESIGN_LABELS, FeedFilters
 from .models import UserPaperState
 
@@ -138,13 +139,28 @@ def liked(request: HttpRequest) -> HttpResponse:
     return _paper_collection(request, collection="liked")
 
 
+@login_required
+def external_saved(request: HttpRequest) -> HttpResponse:
+    return _paper_collection(request, collection="external")
+
+
 def _paper_collection(request: HttpRequest, *, collection: str) -> HttpResponse:
     cursor = request.GET.get("cursor") or None
+    empty_action: dict[str, str] = {}
     if collection == "liked":
         page = services.get_liked_page(request.user, cursor=cursor)
         next_url_name = "feed:liked"
         empty_title = "No liked papers yet"
         empty_body = "Tap the heart on any paper and it will appear here."
+    elif collection == "external":
+        page = services.get_external_page(request.user, cursor=cursor)
+        next_url_name = "feed:external"
+        empty_title = "Nothing added from outside yet"
+        empty_body = "Papers you share to MedPally, or add with a link, DOI or PMID, are kept here."
+        empty_action = {
+            "empty_action_url": reverse("feed:add_paper"),
+            "empty_action_label": "Add a paper",
+        }
     else:
         page = services.get_saved_page(request.user, cursor=cursor)
         next_url_name = "feed:read_later"
@@ -167,6 +183,7 @@ def _paper_collection(request: HttpRequest, *, collection: str) -> HttpResponse:
         "empty_icon": collection,
         "more_trigger": "revealed",
         "is_first_page": not cursor,
+        **empty_action,
     }
     template = "feed/_cards.html" if _is_htmx(request) else "feed/read_later.html"
     return render(request, template, context)
@@ -227,6 +244,7 @@ _DETAIL_ORIGINS = {
     "recent": ("search", "Search", "feed:search"),
     "saved": ("saved", "Saved", "feed:read_later"),
     "liked": ("saved", "Liked", "feed:liked"),
+    "external": ("saved", "External", "feed:external"),
 }
 _DEFAULT_DETAIL_ORIGIN = ("feed", "Feed", "feed:list")
 
@@ -234,11 +252,13 @@ _DEFAULT_DETAIL_ORIGIN = ("feed", "Feed", "feed:list")
 def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
     """Public share page: the generated note and a PubMed link, no login."""
     paper = get_object_or_404(
-        Paper.objects.select_related("journal", "summary"),
-        pmid=pmid,
-        is_visible=True,
-        summary_status=Paper.SummaryStatus.OK,
+        Paper.objects.select_related("journal", "summary"), pmid=pmid, is_visible=True
     )
+    # A paper still waiting for its note is shown only to whoever shared it in.
+    if paper.summary_status != Paper.SummaryStatus.OK and not external.reader_added(
+        request.user, paper
+    ):
+        raise Http404
     context: dict = {"paper": paper, "state": None}
     if request.user.is_authenticated:
         origin = request.GET.get("from")
@@ -259,16 +279,20 @@ def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
     return render(request, "feed/paper_detail.html", context)
 
 
-def _get_actionable_paper(pmid: str) -> Paper:
+def _get_actionable_paper(request: HttpRequest, pmid: str) -> Paper:
     """Only a paper the user could actually have seen can be acted on.
 
     Without the visibility filter any pmid in the table can be saved or liked
     by posting to the endpoint directly, including papers pulled from the feed
-    by an admin.
+    by an admin. A paper the reader shared in counts as seen by them even
+    before its summary exists.
     """
-    return get_object_or_404(
-        Paper, pmid=pmid, is_visible=True, summary_status=Paper.SummaryStatus.OK
-    )
+    paper = get_object_or_404(Paper, pmid=pmid, is_visible=True)
+    if paper.summary_status != Paper.SummaryStatus.OK and not external.reader_added(
+        request.user, paper
+    ):
+        raise Http404
+    return paper
 
 
 def _get_or_create_state(user, paper: Paper) -> UserPaperState:
@@ -279,7 +303,7 @@ def _get_or_create_state(user, paper: Paper) -> UserPaperState:
 @login_required
 @require_POST
 def toggle_save(request: HttpRequest, pmid: str) -> HttpResponse:
-    paper = _get_actionable_paper(pmid)
+    paper = _get_actionable_paper(request, pmid)
     state = _get_or_create_state(request.user, paper)
     state.saved_at = None if state.saved_at else timezone.now()
     state.save(update_fields=["saved_at", "updated_at"])
@@ -289,7 +313,7 @@ def toggle_save(request: HttpRequest, pmid: str) -> HttpResponse:
 @login_required
 @require_POST
 def toggle_like(request: HttpRequest, pmid: str) -> HttpResponse:
-    paper = _get_actionable_paper(pmid)
+    paper = _get_actionable_paper(request, pmid)
     state = _get_or_create_state(request.user, paper)
     state.liked_at = None if state.liked_at else timezone.now()
     state.save(update_fields=["liked_at", "updated_at"])
@@ -299,8 +323,83 @@ def toggle_like(request: HttpRequest, pmid: str) -> HttpResponse:
 @login_required
 @require_POST
 def dismiss(request: HttpRequest, pmid: str) -> HttpResponse:
-    paper = _get_actionable_paper(pmid)
+    paper = _get_actionable_paper(request, pmid)
     state = _get_or_create_state(request.user, paper)
     state.dismissed_at = timezone.now()
     state.save(update_fields=["dismissed_at", "updated_at"])
     return HttpResponse("")
+
+
+@login_required
+def add_paper(request: HttpRequest) -> HttpResponse:
+    """Add a paper from outside the feed: a pasted link, DOI or PMID, or a share.
+
+    Also the installed app's share target. Android hands a shared page over as
+    ?title=…&text=…&url=… — the link may arrive in either text or url — so a
+    GET only looks the paper up and shows it; saving is a separate POST, so
+    a link opened from anywhere can never put something in Saved by itself.
+    """
+    if request.method == "POST":
+        pmid = (request.POST.get("pmid") or "").strip()
+        error = ""
+        if not pmid.isdigit():
+            error = "Choose a paper to save first."
+        else:
+            try:
+                saved = external.save_shared_paper(request.user, pmid)
+            except external.PubMedUnavailable:
+                error = "We couldn't reach PubMed just now. Try again in a moment."
+            except external.PaperNotFound:
+                error = "That paper isn't available on PubMed."
+            else:
+                if saved.already_saved:
+                    messages.success(request, "That paper is already in your Saved.")
+                elif saved.is_external:
+                    messages.success(request, "Saved. It's marked External in your Saved list.")
+                else:
+                    messages.success(request, "Saved.")
+                return redirect("feed:read_later")
+        return _render_add_paper(request, query=pmid, error=error)
+
+    shared_url = (request.GET.get("url") or "").strip()
+    shared_text = (request.GET.get("text") or "").strip()
+    query = (request.GET.get("q") or "").strip()
+    title = (request.GET.get("title") or "").strip()
+    text = " ".join(part for part in (shared_url, shared_text, query) if part)
+
+    found = None
+    error = ""
+    if text or title:
+        try:
+            found = external.find_shared_paper(request.user, text=text, title=title)
+        except external.PubMedUnavailable:
+            error = "We couldn't reach PubMed just now. Try again in a moment."
+        else:
+            if found is None:
+                error = (
+                    "We couldn't match that to a PubMed record. Try the paper's PubMed "
+                    "link, its DOI or its PMID."
+                )
+    return _render_add_paper(
+        request, query=shared_url or query or shared_text or title, found=found, error=error
+    )
+
+
+def _render_add_paper(
+    request: HttpRequest,
+    *,
+    query: str,
+    found: external.SharedPaper | None = None,
+    error: str = "",
+) -> HttpResponse:
+    return render(
+        request,
+        "feed/add_paper.html",
+        {
+            "query": query,
+            "found": found,
+            "error": error,
+            "active_tab": "saved",
+            "bar_title": "Add a paper",
+        },
+    )

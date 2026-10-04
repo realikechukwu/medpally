@@ -228,14 +228,31 @@ function closeMenus(except) {
   });
 }
 
+// Opens downwards unless it would run under the tab bar and there is more
+// room above; whichever way it opens, it is capped to the space it has and
+// scrolls inside itself rather than running off the screen.
+var MENU_MARGIN = 8;
+
 function placeMenu(menu) {
   var panel = menu.querySelector(".menu-panel");
-  if (!panel) return;
+  var trigger = menu.querySelector("summary");
+  if (!panel || !trigger) return;
   menu.classList.remove("opens-up");
+  panel.style.maxHeight = "";
+
   var bottomBar = document.getElementById("bottom-nav");
-  var limit = bottomBar && bottomBar.offsetParent !== null ?
+  // Not offsetParent: it is always null for a fixed element like the tab bar.
+  var floor = bottomBar && getComputedStyle(bottomBar).display !== "none" ?
     bottomBar.getBoundingClientRect().top : window.innerHeight;
-  if (panel.getBoundingClientRect().bottom > limit - 8) menu.classList.add("opens-up");
+  var navBar = document.getElementById("nav-bar");
+  var ceiling = navBar ? navBar.getBoundingClientRect().bottom : 0;
+  var anchor = trigger.getBoundingClientRect();
+  var below = floor - anchor.bottom - MENU_MARGIN;
+  var above = anchor.top - Math.max(ceiling, 0) - MENU_MARGIN;
+
+  var opensUp = panel.offsetHeight > below && above > below;
+  menu.classList.toggle("opens-up", opensUp);
+  panel.style.maxHeight = Math.max(160, opensUp ? above : below) + "px";
 }
 
 function initMenus() {
@@ -786,6 +803,7 @@ var INVALIDATION_PATHS = {
   feed: "/feed/",
   saved: "/feed/read-later/",
   liked: "/feed/liked/",
+  external: "/feed/external/",
   account: "/account/",
   profile: "/settings/profile/",
   journals: "/settings/journals/",

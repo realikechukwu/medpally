@@ -74,6 +74,13 @@ class Paper(models.Model):
     is_rct = models.BooleanField(default=False)
 
     is_visible = models.BooleanField(default=True, help_text="Admin kill switch.")
+    # A reader shared this in from outside; ingestion never selected it. It is
+    # kept out of every feed, search and featured pick, and lives only in the
+    # Saved lists of whoever added it — until a nightly ingest finds the same
+    # paper on its own, which clears the flag (see _UPSERT_UPDATE_FIELDS).
+    is_external = models.BooleanField(
+        default=False, help_text="Added by a reader's share, not by ingestion."
+    )
 
     summary_status = models.CharField(
         max_length=10, choices=SummaryStatus.choices, default=SummaryStatus.PENDING

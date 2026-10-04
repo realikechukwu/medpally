@@ -2,11 +2,18 @@
 
 {% block content_class %} feed-flush{% endblock %}
 
-{% block nav_title %}{% if collection == 'liked' %}Liked{% else %}Saved{% endif %}{% endblock %}
+{% block nav_title %}{% if collection == 'liked' %}Liked{% elif collection == 'external' %}External{% else %}Saved{% endif %}{% endblock %}
+
+{% block nav_bar_class %} is-overlay{% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-title">Saved</h1>
+  <div class="page-title-row">
+    <h1 class="page-title">Saved</h1>
+    <a data-app-nav class="title-action-btn" href="{% url 'feed:add_paper' %}" aria-label="Add a paper" title="Add a paper">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"/></svg>
+    </a>
+  </div>
   <nav class="segmented collection-tabs" aria-label="Saved paper collections">
     <a data-app-nav="replace" class="segmented-item{% if collection == 'saved' %} is-selected{% endif %}"
       {% if collection == 'saved' %}aria-current="page"{% endif %}
@@ -14,6 +21,9 @@
     <a data-app-nav="replace" class="segmented-item{% if collection == 'liked' %} is-selected{% endif %}"
       {% if collection == 'liked' %}aria-current="page"{% endif %}
       href="{% url 'feed:liked' %}">Liked</a>
+    <a data-app-nav="replace" class="segmented-item{% if collection == 'external' %} is-selected{% endif %}"
+      {% if collection == 'external' %}aria-current="page"{% endif %}
+      href="{% url 'feed:external' %}">External</a>
   </nav>
 </div>
 <div id="cards">

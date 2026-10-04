@@ -42,7 +42,7 @@
     leads with a back button and what sits on the right, and app.js swaps the
     whole bar along with the content on in-app navigation.
   {% endcomment %}
-  <header id="nav-bar" class="nav-bar">
+  <header id="nav-bar" class="nav-bar{% block nav_bar_class %}{% endblock %}">
     <div class="nav-bar-inner">
       <div class="nav-bar-leading">{% block nav_leading %}{% endblock %}</div>
       {# Fades in once the page's large title scrolls under the bar. #}

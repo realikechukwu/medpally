@@ -82,6 +82,27 @@ class PubMedClient:
             query_key=query_key,
         )
 
+    def search_pmids(self, term: str, *, retmax: int = 5, sort: str = "") -> list[str]:
+        """Run a search and return the matching PMIDs directly.
+
+        For pinpoint lookups (a DOI, a PMC ID, a title) where a handful of IDs
+        is the whole answer, so the history server would only add a round trip.
+        """
+        params = self._base_params() | {"term": term, "retmode": "xml", "retmax": str(retmax)}
+        if sort:
+            params["sort"] = sort
+        raw = self.http.post(EUTILS_BASE + "esearch.fcgi", params)
+
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError as exc:
+            raise ParseError(f"esearch returned unparseable XML: {exc}") from exc
+
+        error = root.findtext("ERROR")
+        if error:
+            raise ParseError(f"esearch rejected the query: {error}")
+        return [node.text for node in root.findall("IdList/Id") if node.text]
+
     def efetch_from_history(
         self, result: SearchResult, *, batch_size: int = EFETCH_BATCH_SIZE
     ) -> Iterator[FetchedArticle]:
