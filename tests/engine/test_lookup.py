@@ -74,6 +74,17 @@ class FakeSource:
             Reference(doi="10.1002/ejhf.2915"),
         ),
         (
+            "https://www.nature.com/articles/s41586-026-11044-y",
+            "",
+            Reference(doi="10.1038/s41586-026-11044-y"),
+        ),
+        (
+            "https://www.nature.com/articles/s41591-025-03456-7.pdf?utm_source=share",
+            "",
+            Reference(doi="10.1038/s41591-025-03456-7"),
+        ),
+        ("nature.com/articles/nm.2345#Sec2", "", Reference(doi="10.1038/nm.2345")),
+        (
             "https://www.thelancet.com/journals/lancet/article/PIIS0140-6736(23)01234-5/fulltext",
             "",
             Reference(pii="S0140-6736(23)01234-5"),

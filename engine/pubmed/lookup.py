@@ -37,6 +37,10 @@ _PMID_LABEL = re.compile(r"\bPMID:?\s*(\d{1,9})(?!\d)", re.IGNORECASE)
 _BARE_PMID = re.compile(r"^\s*(\d{1,9})\s*$")
 _PMCID = re.compile(r"\b(PMC\d{4,9})(?!\d)", re.IGNORECASE)
 _DOI = re.compile(r"\b(10\.\d{4,9}/[^\s\"'<>]+)", re.IGNORECASE)
+# Nature's article URLs carry the DOI without its 10.1038/ prefix:
+# nature.com/articles/s41586-026-11044-y is 10.1038/s41586-026-11044-y, across
+# every Nature journal and for older IDs such as nm.2345 alike.
+_NATURE_URL = re.compile(r"\bnature\.com/articles/([a-z0-9][a-z0-9.-]*)", re.IGNORECASE)
 # What journal sites append after the DOI in their article URLs.
 _DOI_URL_SUFFIX = re.compile(
     r"/(?:full|abstract|abs|pdf|epdf|epub|fulltext|summary|figures|references|"
@@ -192,6 +196,9 @@ def parse_reference(text: str = "", title: str = "") -> Reference:
 
     pmcid = (_first_group(_PMCID, decoded) or "").upper()
     doi = _clean_doi(_first_group(_DOI, decoded) or "")
+    if not doi:
+        nature_id = _first_group(_NATURE_URL, decoded)
+        doi = _clean_doi("10.1038/" + nature_id) if nature_id else ""
     pii = _normalise_pii(_first_group(_PII, decoded) or "")
 
     # Shared text that is not a link (a title copied from a reference list)
