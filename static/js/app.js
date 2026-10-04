@@ -1,51 +1,37 @@
-// Progressive enhancement for the CSS-only drawer: Escape and navigation close
-// it, and the hamburger exposes its open/closed state to assistive tech.
-function closeDrawer() {
-  var toggle = document.getElementById("drawer-toggle");
-  if (!toggle || !toggle.checked) return;
-  toggle.checked = false;
-  toggle.dispatchEvent(new Event("change"));
+// The navigation bar follows iOS: transparent while the page's large title is
+// in view, then a frosted bar with a hairline once content scrolls under it,
+// and the page's title fades into the bar as the large one disappears.
+function updateNavBarEdge() {
+  var bar = document.getElementById("nav-bar");
+  if (bar) bar.classList.toggle("is-scrolled", window.scrollY > 2);
 }
 
-function initDrawer() {
-  var toggle = document.getElementById("drawer-toggle");
-  if (!toggle) return;
-  toggle.setAttribute("role", "button");
-  toggle.setAttribute("aria-expanded", toggle.checked ? "true" : "false");
-  toggle.addEventListener("change", function () {
-    toggle.setAttribute("aria-expanded", toggle.checked ? "true" : "false");
-  });
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape") closeDrawer();
-  });
-}
-
-// Large-title collapse: once a page's <h1> scrolls up under the sticky bar, the
-// bar swaps the brand for that page's title and keeps it there.
 function initBarTitle() {
-  var bar = document.querySelector(".top-bar");
-  var slot = bar && bar.querySelector(".top-bar-title");
+  var bar = document.getElementById("nav-bar");
+  var slot = bar && bar.querySelector(".nav-bar-title");
   if (!slot) return;
 
   if (window.medpallyBarTitleObserver) window.medpallyBarTitleObserver.disconnect();
+  window.medpallyBarTitleObserver = null;
 
-  var heading = document.querySelector(".page-title");
-  if (!heading) {
-    // Pages with no heading to collapse (the account page) name themselves in
-    // the view context, and the title simply stays pinned.
-    if (slot.textContent.trim()) bar.classList.add("is-collapsed");
+  var anchor = document.querySelector("#app-main .page-title, #app-main [data-title-anchor]");
+  if (!anchor) {
+    // A screen with no large title keeps its name in the bar throughout.
+    bar.classList.toggle("is-collapsed", Boolean(slot.textContent.trim()));
     return;
   }
 
-  slot.textContent = heading.textContent.trim();
+  if (!slot.textContent.trim()) slot.textContent = anchor.textContent.trim();
   // The negative top margin puts the trigger line at the bottom edge of the
   // bar, so the swap lands exactly as the heading disappears behind it.
-  window.medpallyBarTitleObserver = new IntersectionObserver(
+  var observer = new IntersectionObserver(
     function (entries) {
       bar.classList.toggle("is-collapsed", !entries[0].isIntersecting);
     },
     { rootMargin: "-" + bar.offsetHeight + "px 0px 0px 0px" }
-  ).observe(heading);
+  );
+  observer.observe(anchor);
+  window.medpallyBarTitleObserver = observer;
 }
 
 // The specialty preset is a useful group on a long journal list.  Its toggle
@@ -210,22 +196,6 @@ function initJournalPickers() {
   });
 }
 
-var initialisedOptionRows = new WeakSet();
-
-function initOptionRows() {
-  document.querySelectorAll(".option-row input[type=radio]").forEach(function (radio) {
-    if (initialisedOptionRows.has(radio)) return;
-    initialisedOptionRows.add(radio);
-    radio.addEventListener("change", function () {
-      var form = radio.closest("form");
-      form.querySelectorAll(".option-row").forEach(function (row) {
-        var input = row.querySelector("input[type=radio]");
-        row.classList.toggle("is-selected", input.checked);
-      });
-    });
-  });
-}
-
 // A flash message is a receipt for something the reader just did, so it takes
 // itself away again instead of sitting under the feed for the rest of the
 // session.
@@ -248,24 +218,59 @@ function initFlashMessages() {
   });
 }
 
-function initFeedMenu() {
-  if (window.medpallyFeedMenuInitialised) return;
-  window.medpallyFeedMenuInitialised = true;
+// Pull-down menus (filter and sort, a card's "more" actions) are <details>
+// elements, so they open without JavaScript. This adds what a menu is
+// expected to do: only one open at a time, a tap outside or Escape closes it,
+// choosing an item closes it, and it opens upwards when there is no room below.
+function closeMenus(except) {
+  document.querySelectorAll("details[data-menu][open]").forEach(function (menu) {
+    if (menu !== except) menu.open = false;
+  });
+}
+
+function placeMenu(menu) {
+  var panel = menu.querySelector(".menu-panel");
+  if (!panel) return;
+  menu.classList.remove("opens-up");
+  var bottomBar = document.getElementById("bottom-nav");
+  var limit = bottomBar && bottomBar.offsetParent !== null ?
+    bottomBar.getBoundingClientRect().top : window.innerHeight;
+  if (panel.getBoundingClientRect().bottom > limit - 8) menu.classList.add("opens-up");
+}
+
+function initMenus() {
+  if (window.medpallyMenusInitialised) return;
+  window.medpallyMenusInitialised = true;
+  // toggle does not bubble, so listen during capture.
+  document.addEventListener("toggle", function (event) {
+    var menu = event.target;
+    if (!menu.matches || !menu.matches("details[data-menu]") || !menu.open) return;
+    closeMenus(menu);
+    placeMenu(menu);
+  }, true);
   document.addEventListener("click", function (event) {
-    var menu = document.querySelector(".feed-menu");
-    if (!menu) return;
-    if (menu.open && !menu.contains(event.target)) menu.open = false;
+    document.querySelectorAll("details[data-menu][open]").forEach(function (menu) {
+      if (!menu.contains(event.target)) {
+        menu.open = false;
+      } else if (event.target.closest(".menu-item")) {
+        // After the click has done its work (a submit, a new tab).
+        window.setTimeout(function () { menu.open = false; }, 0);
+      }
+    });
   });
   document.addEventListener("keydown", function (event) {
-    var menu = document.querySelector(".feed-menu");
-    if (!menu) return;
-    if (event.key === "Escape") menu.open = false;
+    if (event.key !== "Escape") return;
+    var open = document.querySelector("details[data-menu][open]");
+    if (!open) return;
+    open.open = false;
+    var summary = open.querySelector("summary");
+    if (summary) summary.focus();
   });
 }
 
 // The feed can grow for many pages through infinite scroll. Keep the return
 // trip short without occupying space until the reader has moved well past the
-// first screen. Event delegation also survives cached tab-navigation swaps.
+// first screen. Event delegation also survives in-app navigation swaps.
 var BACK_TO_TOP_THRESHOLD = 480;
 
 function updateBackToTop() {
@@ -274,27 +279,112 @@ function updateBackToTop() {
   button.hidden = window.scrollY <= BACK_TO_TOP_THRESHOLD;
 }
 
-function initBackToTop() {
-  if (!window.medpallyBackToTopInitialised) {
-    window.medpallyBackToTopInitialised = true;
-    window.addEventListener("scroll", updateBackToTop, { passive: true });
+function scrollToPageTop() {
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+}
+
+function initScrollEffects() {
+  if (!window.medpallyScrollEffectsInitialised) {
+    window.medpallyScrollEffectsInitialised = true;
+    var queued = false;
+    window.addEventListener("scroll", function () {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(function () {
+        queued = false;
+        updateNavBarEdge();
+        updateBackToTop();
+      });
+    }, { passive: true });
     document.addEventListener("click", function (event) {
-      var button = event.target.closest("[data-back-to-top]");
-      if (!button) return;
-      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      if (event.target.closest("[data-back-to-top]")) scrollToPageTop();
     });
   }
+  updateNavBarEdge();
   updateBackToTop();
 }
 
-// Tab navigation stays progressively enhanced: ordinary links still work if
-// JavaScript is unavailable, while signed-in readers get instant, cached swaps
-// of the content area.  We deliberately use sessionStorage, not a shared HTTP
-// cache: every page contains a reader's personalised feed and saved papers.
-var NAVIGATION_CACHE_VERSION = "v4";
+// A short confirmation that floats above the tab bar, for actions whose
+// result is otherwise invisible (a copied link).
+var TOAST_MS = 1800;
+var toastTimer;
+
+function showToast(message) {
+  var toast = document.querySelector("[data-toast]");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.hidden = false;
+  window.requestAnimationFrame(function () {
+    toast.classList.add("is-visible");
+  });
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(function () {
+    toast.classList.remove("is-visible");
+    window.setTimeout(function () { toast.hidden = true; }, 250);
+  }, TOAST_MS);
+}
+
+// Sharing hands the paper's public page to the system share sheet where there
+// is one (phones, Safari), and copies the link everywhere else.
+function initShare() {
+  if (window.medpallyShareInitialised) return;
+  window.medpallyShareInitialised = true;
+  document.addEventListener("click", async function (event) {
+    var button = event.target.closest("[data-share]");
+    if (!button) return;
+    event.preventDefault();
+    var url = new URL(button.dataset.sharePath || window.location.pathname, window.location.origin).href;
+    var title = button.dataset.shareTitle || document.title;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: title, url: url });
+      } catch (error) {
+        // Closing the share sheet is not a failure worth reporting.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied");
+    } catch (error) {
+      showToast("Couldn't copy the link");
+    }
+  });
+}
+
+// ---------------------------------------------------------------- navigation
+//
+// Signed-in navigation stays inside the page, like a native app, while every
+// link and form still works as a plain request without JavaScript.
+//
+// Each history entry the app creates carries {id, depth, rootDepth}: depth
+// counts screens pushed since the app was opened, and rootDepth is the depth
+// of the tab screen the current stack started from. That is what lets a back
+// button step back through history instead of reloading its parent, and a tap
+// on the current tab pop straight back to the tab's list.
+//
+// Leaving a screen keeps its live DOM — every page infinite scroll has loaded,
+// which weeks are open, the scroll position — so stepping back to it puts the
+// reader exactly where they were. A serialised copy also goes into
+// sessionStorage, so a tab visited again after a reload still opens at once.
+// We deliberately use sessionStorage, not a shared HTTP cache: every page
+// contains a reader's personalised feed and saved papers.
+var NAVIGATION_CACHE_VERSION = "v5";
 var NAVIGATION_CACHE_TTL_MS = 5 * 60 * 1000;
+var LIVE_PAGE_LIMIT = 10;
+var LIVE_PAGE_MAX_AGE_MS = 30 * 60 * 1000;
+// How long a tap waits for the next screen before showing a placeholder. Long
+// enough that a quick response slides in finished, short enough to feel
+// immediate when it does not.
+var CONTENT_WAIT_MS = 250;
+
+var livePages = new Map();
+var activeEntry = null;
+var activeHref = "";
 var navigationRequest;
+var pendingPop = null;
+var pendingPages = new Map();
 
 function navigationScope() {
   return document.body.dataset.navigationUser || "";
@@ -360,102 +450,144 @@ function pageFromDocument(pageDocument, options) {
   var bottomNav = pageDocument.getElementById("bottom-nav");
   if (!main || !bottomNav) return null;
 
-  var drawerNav = pageDocument.querySelector(".drawer-nav");
-  var barTitle = pageDocument.querySelector(".top-bar-title");
+  var navBar = pageDocument.getElementById("nav-bar");
+  var sidebarNav = pageDocument.querySelector(".sidebar-nav");
   return {
     main: settings.includeMessages ? main.outerHTML : cacheableMainMarkup(main),
+    navBar: navBar ? navBar.outerHTML : "",
     bottomNav: bottomNav.outerHTML,
-    drawerNav: drawerNav ? drawerNav.innerHTML : "",
-    barTitle: barTitle ? barTitle.textContent : "",
+    sidebarNav: sidebarNav ? sidebarNav.innerHTML : "",
     title: pageDocument.title,
     scrollY: 0,
   };
 }
 
 function snapshotCurrentPage() {
-  var main = document.getElementById("app-main");
-  var bottomNav = document.getElementById("bottom-nav");
-  if (!main || !bottomNav) return null;
-  var drawerNav = document.querySelector(".drawer-nav");
-  var barTitle = document.querySelector(".top-bar-title");
-  return {
-    main: cacheableMainMarkup(main),
-    bottomNav: bottomNav.outerHTML,
-    drawerNav: drawerNav ? drawerNav.innerHTML : "",
-    barTitle: barTitle ? barTitle.textContent : "",
-    title: document.title,
-    scrollY: window.scrollY,
-  };
+  var page = pageFromDocument(document);
+  if (page) page.scrollY = window.scrollY;
+  return page;
 }
 
 function cacheCurrentPage() {
-  saveCachedPage(new URL(window.location.href), snapshotCurrentPage());
+  saveCachedPage(new URL(activeHref || window.location.href), snapshotCurrentPage());
 }
 
-function replaceWithMarkup(current, markup) {
+function nodeFromMarkup(markup) {
   var template = document.createElement("template");
   template.innerHTML = markup.trim();
-  var replacement = template.content.firstElementChild;
-  if (!replacement) return null;
-  current.replaceWith(replacement);
-  return replacement;
+  return template.content.firstElementChild;
+}
+
+function swapNode(current, replacement) {
+  if (current && replacement && current !== replacement) current.replaceWith(replacement);
 }
 
 function hydratePage() {
   initBarTitle();
   initJournalGroupToggles();
   initJournalPickers();
-  initOptionRows();
-  initFeedMenu();
-  initBackToTop();
-  initWeekGroups();
+  initScrollEffects();
   initFlashMessages();
   applyWeekState();
   if (window.htmx) window.htmx.process(document.getElementById("app-main"));
   document.dispatchEvent(new CustomEvent("medpally:page-change"));
 }
 
-function applyPage(page) {
+// Puts a screen on display: either a live one kept from earlier (DOM nodes) or
+// one rebuilt from markup (a cache entry or a fresh response).
+function showPage(page) {
   var currentMain = document.getElementById("app-main");
   var currentBottomNav = document.getElementById("bottom-nav");
   if (!currentMain || !currentBottomNav) return false;
 
-  if (!replaceWithMarkup(currentMain, page.main)) return false;
-  replaceWithMarkup(currentBottomNav, page.bottomNav);
+  var asNode = function (value) {
+    return typeof value === "string" ? (value ? nodeFromMarkup(value) : null) : value;
+  };
+  var main = asNode(page.main);
+  if (!main) return false;
+  swapNode(currentMain, main);
+  swapNode(currentBottomNav, asNode(page.bottomNav));
+  swapNode(document.getElementById("nav-bar"), asNode(page.navBar));
 
-  var drawerNav = document.querySelector(".drawer-nav");
-  if (drawerNav && page.drawerNav) drawerNav.innerHTML = page.drawerNav;
-  var barTitle = document.querySelector(".top-bar-title");
-  if (barTitle) barTitle.textContent = page.barTitle || "";
+  var sidebarNav = document.querySelector(".sidebar-nav");
+  if (sidebarNav && page.sidebarNav) sidebarNav.innerHTML = page.sidebarNav;
   if (page.title) document.title = page.title;
   hydratePage();
   return true;
 }
 
+// Keeps the screen on display alive under its history entry, so stepping back
+// to it restores it as it was rather than rebuilding it.
+function stashActivePage() {
+  if (!activeEntry) return;
+  var main = document.getElementById("app-main");
+  var bottomNav = document.getElementById("bottom-nav");
+  if (!main || !bottomNav || main.classList.contains("is-page-loading")) return;
+  var sidebarNav = document.querySelector(".sidebar-nav");
+  livePages.delete(activeEntry.id);
+  livePages.set(activeEntry.id, {
+    main: main,
+    navBar: document.getElementById("nav-bar"),
+    bottomNav: bottomNav,
+    sidebarNav: sidebarNav ? sidebarNav.innerHTML : "",
+    title: document.title,
+    href: activeHref,
+    scrollY: window.scrollY,
+    storedAt: Date.now(),
+    stale: false,
+  });
+  while (livePages.size > LIVE_PAGE_LIMIT) {
+    livePages.delete(livePages.keys().next().value);
+  }
+}
+
+function isFresh(page) {
+  return !page.stale && Date.now() - page.storedAt < LIVE_PAGE_MAX_AGE_MS;
+}
+
+// The most recent live copy of a URL, taken out of the store so one screen is
+// never on display twice.
+function takeLivePageByHref(href) {
+  var match = null;
+  livePages.forEach(function (page, id) {
+    if (page.href === href && isFresh(page)) match = { id: id, page: page };
+  });
+  if (!match) return null;
+  livePages.delete(match.id);
+  return match.page;
+}
+
 function showNavigationSkeleton() {
   var main = document.getElementById("app-main");
   if (!main) return;
-  main.classList.add("is-page-loading");
-  main.setAttribute("aria-busy", "true");
-  main.innerHTML =
+  // A fresh element: the outgoing one may be kept alive for the way back.
+  var placeholder = main.cloneNode(false);
+  placeholder.classList.add("is-page-loading");
+  placeholder.setAttribute("aria-busy", "true");
+  placeholder.innerHTML =
     '<div class="page-loading" role="status"><span class="visually-hidden">Loading page</span>' +
     '<div class="skeleton skeleton-title"></div><div class="skeleton skeleton-subtitle"></div>' +
     '<div class="skeleton-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line skeleton-line-short"></div><div class="skeleton skeleton-copy"></div><div class="skeleton skeleton-copy skeleton-copy-short"></div></div>' +
     '<div class="skeleton-card"><div class="skeleton skeleton-line"></div><div class="skeleton skeleton-line skeleton-line-short"></div><div class="skeleton skeleton-copy"></div></div></div>';
+  main.replaceWith(placeholder);
 }
 
-function clearNavigationSkeleton() {
-  var main = document.getElementById("app-main");
-  if (main) {
-    main.classList.remove("is-page-loading");
-    main.removeAttribute("aria-busy");
+// iOS-style push and pop. Only runs where the browser has same-document view
+// transitions and the reader has not asked for reduced motion; Safari's own
+// swipe-back animation is never doubled up.
+function transition(direction, update, skip) {
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!direction || skip || reduceMotion || !document.startViewTransition) {
+    update();
+    return Promise.resolve();
   }
-}
-
-function restoreScroll(scrollY) {
-  window.requestAnimationFrame(function () {
-    window.scrollTo(0, Number.isFinite(scrollY) ? scrollY : 0);
+  var root = document.documentElement;
+  root.dataset.navDirection = direction;
+  var viewTransition = document.startViewTransition(update);
+  viewTransition.finished.finally(function () {
+    delete root.dataset.navDirection;
   });
+  return viewTransition.updateCallbackDone.catch(function () {});
 }
 
 async function fetchPage(url, signal) {
@@ -465,15 +597,46 @@ async function fetchPage(url, signal) {
     signal: signal,
     headers: { "X-MedPally-Navigation": "1" },
   });
-  if (response.redirected || response.url !== url.href) {
-    window.location.assign(response.url);
-    return null;
-  }
+  if (response.redirected || response.url !== url.href) return { redirect: response.url };
   if (!response.ok) throw new Error("Navigation request failed");
   var html = await response.text();
   var page = pageFromDocument(new DOMParser().parseFromString(html, "text/html"));
-  if (!page) throw new Error("Navigation response is missing page content");
-  return page;
+  // A page outside the app shell (sign-in, onboarding) is loaded for real.
+  return page ? { page: page } : { redirect: url.href };
+}
+
+// One request per URL in flight, so a press that starts loading a screen and
+// the click that follows share the same response.
+function requestPage(url) {
+  var pending = pendingPages.get(url.href);
+  if (pending && Date.now() - pending.at < 10000) return pending.promise;
+  var promise = fetchPage(url);
+  pendingPages.set(url.href, { promise: promise, at: Date.now() });
+  promise.catch(function () {
+    pendingPages.delete(url.href);
+  });
+  return promise;
+}
+
+function within(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise(function (resolve) { window.setTimeout(resolve, ms, null); }),
+  ]);
+}
+
+function newEntry(depth, rootDepth, parentHref) {
+  return {
+    medpally: true,
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    depth: depth,
+    rootDepth: rootDepth,
+    parentHref: parentHref || "",
+  };
+}
+
+function readEntry(state) {
+  return state && state.medpally ? state : null;
 }
 
 function isModifiedNavigation(event) {
@@ -481,73 +644,164 @@ function isModifiedNavigation(event) {
     event.shiftKey || event.altKey;
 }
 
-function scrollToPageTop() {
-  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
-}
-
+// mode: "push" (a new screen), "replace" (a different view of this screen —
+// a segment or a filter), or "history" (back/forward). isTab marks a tab-bar
+// destination, which starts a new stack and comes back as it was left.
 async function navigateTo(url, options) {
   var settings = options || {};
+  var mode = settings.mode || "push";
   if (!navigationScope()) {
     window.location.assign(url.href);
     return;
   }
-  if (url.href === window.location.href && !settings.fromHistory) return;
+  if (mode !== "history" && url.href === window.location.href) return;
 
-  if (!settings.fromHistory) cacheCurrentPage();
+  closeMenus();
+  var popped = mode === "history" && pendingPop && pendingPop.href === url.href ? pendingPop : null;
+  pendingPop = null;
+  // A form screen being left mid-save is not worth keeping in either form.
+  if (activeHref && !popped) cacheCurrentPage();
+  if (mode !== "replace" && !popped) stashActivePage();
+
   if (navigationRequest) navigationRequest.abort();
   var request = new AbortController();
   navigationRequest = request;
 
-  if (settings.push) window.history.pushState({}, "", url.href);
+  var previous = activeEntry || newEntry(0, 0);
+  var entry;
+  if (mode === "history") {
+    entry = readEntry(window.history.state);
+    if (!entry) {
+      entry = newEntry(0, 0);
+      window.history.replaceState(entry, "", url.href);
+    }
+  } else if (mode === "replace") {
+    entry = newEntry(previous.depth, settings.isTab ? previous.depth : previous.rootDepth,
+      previous.parentHref);
+    livePages.delete(previous.id);
+    window.history.replaceState(entry, "", url.href);
+  } else {
+    var depth = previous.depth + 1;
+    entry = newEntry(depth, settings.isTab ? depth : previous.rootDepth, activeHref);
+    window.history.pushState(entry, "", url.href);
+  }
+  activeEntry = entry;
+  activeHref = url.href;
+
+  var direction = settings.direction || "";
+  var keepScroll = mode === "history" || settings.isTab;
+
+  // A form that saved and returned to its parent screen: show the parent as
+  // the server just rendered it, with its confirmation message.
+  if (popped) {
+    livePages.delete(entry.id);
+    await transition(direction, function () {
+      showPage(popped.page);
+      window.scrollTo(0, 0);
+    }, settings.skipTransition);
+    saveCachedPage(url, snapshotCurrentPage());
+    return;
+  }
+
+  // Back or forward to a screen still alive: exactly as it was left.
+  var restoreY = null;
+  if (mode === "history") {
+    var kept = livePages.get(entry.id);
+    if (kept && kept.href === url.href) {
+      livePages.delete(entry.id);
+      if (isFresh(kept)) {
+        await transition(direction, function () {
+          showPage(kept);
+          window.scrollTo(0, kept.scrollY);
+        }, settings.skipTransition);
+        return;
+      }
+      // Its data changed underneath it (a settings change): rebuild it, but
+      // still come back to the same place.
+      restoreY = kept.scrollY;
+    }
+  }
+
+  // A tab comes back as the reader left it.
+  if (settings.isTab) {
+    var tab = takeLivePageByHref(url.href);
+    if (tab) {
+      await transition(direction, function () {
+        showPage(tab);
+        window.scrollTo(0, tab.scrollY);
+      }, settings.skipTransition);
+      return;
+    }
+  }
+
   var cached = readCachedPage(url);
-  if (cached && applyPage(cached)) {
-    restoreScroll(settings.restoreCachedScroll === false ? 0 : cached.scrollY);
+  if (cached) {
+    await transition(direction, function () {
+      showPage(cached);
+      window.scrollTo(0, restoreY !== null ? restoreY : keepScroll ? cached.scrollY : 0);
+    }, settings.skipTransition);
     // Keep the rendered page stable while a quiet refresh makes the next
     // visit current. Replacing it a second time would make scrolling jump.
     try {
       var refreshed = await fetchPage(url, request.signal);
-      if (refreshed) saveCachedPage(url, refreshed);
+      if (refreshed && refreshed.page) saveCachedPage(url, refreshed.page);
     } catch (error) {
       // The cached page is still a useful, private fallback while offline.
     }
     return;
   }
 
-  showNavigationSkeleton();
-  restoreScroll(0);
   try {
-    var page = await fetchPage(url, request.signal);
-    if (!page) return;
+    var pending = requestPage(url);
+    pendingPages.delete(url.href);
+    var result = await within(pending, CONTENT_WAIT_MS);
     if (navigationRequest !== request) return;
-    saveCachedPage(url, page);
-    applyPage(page);
-    clearNavigationSkeleton();
-    restoreScroll(0);
+    var showedPlaceholder = false;
+    if (!result) {
+      showedPlaceholder = true;
+      await transition(direction, function () {
+        showNavigationSkeleton();
+        window.scrollTo(0, 0);
+      }, settings.skipTransition);
+      result = await pending;
+      if (navigationRequest !== request) return;
+    }
+    if (result.redirect) {
+      window.location.assign(result.redirect);
+      return;
+    }
+    saveCachedPage(url, result.page);
+    await transition(showedPlaceholder ? "" : direction, function () {
+      showPage(result.page);
+      window.scrollTo(0, restoreY || 0);
+    }, settings.skipTransition);
   } catch (error) {
-    if (error.name !== "AbortError") window.location.assign(url.href);
+    if (error.name !== "AbortError" && navigationRequest === request) {
+      window.location.assign(url.href);
+    }
   }
 }
+
+var INVALIDATION_PATHS = {
+  feed: "/feed/",
+  saved: "/feed/read-later/",
+  liked: "/feed/liked/",
+  account: "/account/",
+  profile: "/settings/profile/",
+  journals: "/settings/journals/",
+  notifications: "/settings/notifications/",
+};
 
 function invalidateCachedTabs(tabNames) {
   var scope = navigationScope();
   if (!scope) return;
-  var paths = {
-    feed: "/feed/",
-    saved: "/feed/read-later/",
-    liked: "/feed/liked/",
-    account: "/account/",
-    profile: "/settings/profile/",
-    journals: "/settings/journals/",
-    notifications: "/settings/notifications/",
-  };
   var prefix = "medpally:navigation:" + NAVIGATION_CACHE_VERSION + ":" + scope + ":";
   try {
     for (var index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
       var key = window.sessionStorage.key(index);
       if (!key || key.indexOf(prefix) !== 0) continue;
       tabNames.forEach(function (tabName) {
-        if (paths[tabName] && key.indexOf(prefix + paths[tabName]) === 0) {
+        if (INVALIDATION_PATHS[tabName] && key.indexOf(prefix + INVALIDATION_PATHS[tabName]) === 0) {
           window.sessionStorage.removeItem(key);
         }
       });
@@ -555,6 +809,37 @@ function invalidateCachedTabs(tabNames) {
   } catch (error) {
     // Cache invalidation is an optimisation; the server remains authoritative.
   }
+}
+
+function markLivePagesStale(tabNames) {
+  livePages.forEach(function (page) {
+    var path = new URL(page.href).pathname;
+    tabNames.forEach(function (tabName) {
+      if (INVALIDATION_PATHS[tabName] && path.indexOf(INVALIDATION_PATHS[tabName]) === 0) {
+        page.stale = true;
+      }
+    });
+  });
+}
+
+// Saving or liking a paper on one screen updates the same paper on every
+// screen kept for the way back, so the feed a reader returns to never shows a
+// bookmark they have just removed; a dismissed paper leaves them all.
+function syncLivePages(form, markup) {
+  var action = form.getAttribute("hx-post");
+  if (!action) return;
+  var dismissed = /\/dismiss\/$/.test(action);
+  livePages.forEach(function (page) {
+    page.main.querySelectorAll('form[hx-post="' + action + '"]').forEach(function (copy) {
+      if (dismissed) {
+        var card = copy.closest("article");
+        if (card) card.remove();
+        return;
+      }
+      var fresh = nodeFromMarkup(markup);
+      if (fresh) copy.replaceWith(fresh);
+    });
+  });
 }
 
 function setSubmitPending(button, pending) {
@@ -623,13 +908,26 @@ async function submitAppForm(form, submitter) {
 
     var invalidations = (form.dataset.cacheInvalidate || "").split(" ").filter(Boolean);
     invalidateCachedTabs(invalidations);
-    window.history.replaceState({}, "", responseUrl.href);
-    if (!applyPage(page)) {
+    markLivePagesStale(invalidations);
+
+    // Saved and sent back to the screen this one was opened from: step back
+    // to it, as a settings screen does on iOS, rather than stacking a second
+    // copy of it on top.
+    if (activeEntry && activeEntry.depth > activeEntry.rootDepth &&
+      activeEntry.parentHref === responseUrl.href) {
+      pendingPop = { href: responseUrl.href, page: page };
+      window.history.back();
+      return;
+    }
+
+    window.history.replaceState(activeEntry, "", responseUrl.href);
+    activeHref = responseUrl.href;
+    if (!showPage(page)) {
       window.location.assign(responseUrl.href);
       return;
     }
     saveCachedPage(responseUrl, snapshotCurrentPage());
-    restoreScroll(0);
+    window.scrollTo(0, 0);
   } catch (error) {
     if (error.name !== "AbortError") {
       delete form.dataset.submitting;
@@ -645,6 +943,16 @@ function initAppFormSubmissions() {
   if (!navigationScope() || window.medpallyAppFormsInitialised) return;
   window.medpallyAppFormsInitialised = true;
   document.addEventListener("submit", function (event) {
+    var search = event.target.closest("form[data-app-search]");
+    if (search) {
+      event.preventDefault();
+      var url = new URL(search.action || window.location.href);
+      url.search = new URLSearchParams(new FormData(search)).toString();
+      // Put the keyboard away so the results are visible.
+      if (document.activeElement) document.activeElement.blur();
+      navigateTo(url, { mode: "replace" });
+      return;
+    }
     var form = event.target.closest("form[data-app-submit]");
     if (!form) return;
     event.preventDefault();
@@ -665,8 +973,8 @@ function prefetchFrequentlyUsedTabs() {
   urls.reduce(function (promise, url) {
     return promise.then(async function () {
       try {
-        var page = await fetchPage(url);
-        if (page) saveCachedPage(url, page);
+        var result = await fetchPage(url);
+        if (result && result.page) saveCachedPage(url, result.page);
       } catch (error) {
         // Prefetching must never make the current page feel slower.
       }
@@ -674,39 +982,111 @@ function prefetchFrequentlyUsedTabs() {
   }, Promise.resolve());
 }
 
+function stripHash(href) {
+  return href.split("#")[0];
+}
+
 function initTabNavigation() {
   if (!navigationScope() || window.medpallyTabNavigationInitialised) return;
   window.medpallyTabNavigationInitialised = true;
+  // The app restores positions itself; the browser doing it too fights it.
+  if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+
+  activeEntry = readEntry(window.history.state);
+  if (!activeEntry) {
+    activeEntry = newEntry(0, 0);
+    window.history.replaceState(activeEntry, "", window.location.href);
+  }
+  activeHref = window.location.href;
   cacheCurrentPage();
 
   document.addEventListener("click", function (event) {
-    var link = event.target.closest("a[data-tab-nav], a[data-app-nav]");
-    if (!link || isModifiedNavigation(event) || link.target) return;
-    var url = new URL(link.href, window.location.href);
-    if (url.origin !== window.location.origin) return;
-    if (link.closest(".drawer")) closeDrawer();
-    event.preventDefault();
-    // A second tap on the tab the reader is already viewing is a quick route
-    // back to its newest papers. Switching between tabs still restores the
-    // reader's saved position for each list.
-    if (url.href === window.location.href) {
-      scrollToPageTop();
+    if (isModifiedNavigation(event)) return;
+
+    var back = event.target.closest("a[data-nav-back]");
+    if (back) {
+      event.preventDefault();
+      // The screen underneath is the one the reader came from: step back to
+      // it. Otherwise (a shared link opened cold) go to the parent instead.
+      if (activeEntry && activeEntry.depth > activeEntry.rootDepth) {
+        window.history.back();
+      } else {
+        navigateTo(new URL(back.href, window.location.href),
+          { mode: "replace", isTab: true, direction: "back" });
+      }
       return;
     }
-    navigateTo(url, {
-      push: true,
-      restoreCachedScroll: link.hasAttribute("data-tab-nav"),
+
+    var link = event.target.closest("a[data-tab-nav], a[data-app-nav]");
+    if (!link || link.target) return;
+    var url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin) return;
+    event.preventDefault();
+
+    if (link.hasAttribute("data-tab-nav")) {
+      var isCurrentTab = link.classList.contains("is-active");
+      // On iOS a tap on the tab you are in pops back to its list, and a tap
+      // while on the list scrolls it to the top.
+      if (isCurrentTab && activeEntry && activeEntry.depth > activeEntry.rootDepth) {
+        window.history.go(activeEntry.rootDepth - activeEntry.depth);
+        return;
+      }
+      if (isCurrentTab || url.href === window.location.href) {
+        scrollToPageTop();
+        return;
+      }
+      navigateTo(url, { mode: "push", isTab: true });
+      return;
+    }
+
+    // Grey the card out now, as the server will on the way back.
+    if (link.hasAttribute("data-card-link")) {
+      var card = link.closest(".card");
+      if (card) card.classList.add("seen");
+    }
+    var replace = link.getAttribute("data-app-nav") === "replace";
+    navigateTo(url, { mode: replace ? "replace" : "push", direction: replace ? "" : "forward" });
+  });
+
+  // A mouse press is a near-certain click, so start loading on the way down.
+  // Touch is left alone: a finger landing on a card is usually a scroll.
+  document.addEventListener("pointerdown", function (event) {
+    if (event.pointerType !== "mouse" || event.button !== 0) return;
+    var link = event.target.closest("a[data-app-nav]");
+    if (!link || link.target) return;
+    var url = new URL(link.href, window.location.href);
+    if (url.origin !== window.location.origin || url.href === window.location.href) return;
+    if (!readCachedPage(url)) requestPage(url).catch(function () {});
+  });
+
+  window.addEventListener("popstate", function (event) {
+    var entry = readEntry(event.state);
+    if (!entry && stripHash(window.location.href) === stripHash(activeHref)) return;
+    var direction = "";
+    if (entry && activeEntry) {
+      direction = entry.depth < activeEntry.depth ? "back" :
+        entry.depth > activeEntry.depth ? "forward" : "";
+    }
+    navigateTo(new URL(window.location.href), {
+      mode: "history",
+      direction: direction,
+      skipTransition: Boolean(event.hasUAVisualTransition),
     });
   });
-  window.addEventListener("popstate", function () {
-    navigateTo(new URL(window.location.href), { fromHistory: true, push: false });
-  });
   window.addEventListener("pagehide", cacheCurrentPage);
-  document.addEventListener("htmx:afterRequest", function (event) {
-    var form = event.detail.elt && event.detail.elt.closest("form[data-cache-invalidate]");
-    if (event.detail.successful && form) {
-      invalidateCachedTabs(form.dataset.cacheInvalidate.split(" "));
-    }
+  // beforeOnLoad rather than afterRequest: these forms swap themselves out,
+  // and htmx fires afterRequest on the detached original, which never
+  // bubbles to the document.
+  document.addEventListener("htmx:beforeOnLoad", function (event) {
+    var form = event.detail.elt && event.detail.elt.closest &&
+      event.detail.elt.closest("form[data-cache-invalidate]");
+    var status = event.detail.xhr ? event.detail.xhr.status : 0;
+    if (!form || status < 200 || status >= 300) return;
+    var names = form.dataset.cacheInvalidate.split(" ");
+    invalidateCachedTabs(names);
+    syncLivePages(form, event.detail.xhr.responseText);
+    // The feed is kept current by syncLivePages; collections change shape.
+    markLivePagesStale(names.filter(function (name) { return name !== "feed"; }));
   });
 
   var idle = window.requestIdleCallback || function (callback) { window.setTimeout(callback, 700); };
@@ -833,13 +1213,12 @@ function initServiceWorker() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  initDrawer();
   initBarTitle();
   initJournalGroupToggles();
   initJournalPickers();
-  initOptionRows();
-  initFeedMenu();
-  initBackToTop();
+  initMenus();
+  initScrollEffects();
+  initShare();
   initWeekGroups();
   initFlashMessages();
   applyWeekState();

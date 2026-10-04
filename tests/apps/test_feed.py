@@ -699,10 +699,10 @@ def test_saved_area_has_saved_and_liked_subtabs(client, user):
     assert liked.status_code == 200
     assert b'href="/feed/read-later/"' in saved.content
     assert b'href="/feed/liked/"' in saved.content
-    assert saved.content.count(b"pill-tab pill-tab-active") == 1
-    assert liked.content.count(b"pill-tab pill-tab-active") == 1
-    assert saved.content.count(b'aria-current="page"') == 1
-    assert liked.content.count(b'aria-current="page"') == 1
+    assert saved.content.count(b"segmented-item is-selected") == 1
+    assert liked.content.count(b"segmented-item is-selected") == 1
+    assert b'aria-current="page"\n      href="/feed/read-later/"' in saved.content
+    assert b'aria-current="page"\n      href="/feed/liked/"' in liked.content
 
 
 def test_liked_subtab_shows_liked_papers_not_merely_saved_papers(client, user, circulation):
@@ -985,6 +985,80 @@ def test_opening_the_share_page_records_opened_at(client, user, circulation):
     client.force_login(user)
     client.get(reverse("paper_detail", args=[paper.pmid]))
     assert UserPaperState.objects.get(user=user, paper=paper).opened_at is not None
+
+
+@pytest.mark.parametrize(
+    ("origin", "tab", "label", "back_url"),
+    [
+        (None, "feed", "Feed", "/feed/"),
+        ("search", "search", "Search", "/feed/search/"),
+        ("recent", "search", "Search", "/feed/search/"),
+        ("saved", "saved", "Saved", "/feed/read-later/"),
+        ("liked", "saved", "Liked", "/feed/liked/"),
+        ("nonsense", "feed", "Feed", "/feed/"),
+    ],
+)
+def test_a_paper_opened_in_the_app_keeps_the_tab_it_came_from(
+    client, user, circulation, origin, tab, label, back_url
+):
+    """The back button names the screen underneath, and that tab stays lit."""
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
+    client.force_login(user)
+
+    params = {"from": origin} if origin else {}
+    resp = client.get(reverse("paper_detail", args=[paper.pmid]), params)
+
+    assert resp.context["active_tab"] == tab
+    assert b'id="nav-bar"' in resp.content
+    assert b'id="bottom-nav"' in resp.content
+    assert f'data-nav-back href="{back_url}" aria-label="Back to {label}"'.encode() in resp.content
+
+
+def test_reopening_a_recent_search_does_not_reorder_the_history(client, user, circulation):
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
+    client.force_login(user)
+
+    client.get(reverse("paper_detail", args=[paper.pmid]), {"from": "recent"})
+
+    assert UserPaperState.objects.get(user=user, paper=paper).searched_at is None
+
+
+def test_a_shared_paper_shows_no_app_chrome_to_a_visitor(client, circulation):
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
+    resp = client.get(reverse("paper_detail", args=[paper.pmid]))
+
+    assert b'id="nav-bar"' not in resp.content
+    assert b'id="bottom-nav"' not in resp.content
+    assert reverse("account_signup").encode() in resp.content
+
+
+def test_collection_cards_open_papers_from_their_collection(client, user, circulation):
+    paper = make_paper("1", journal=circulation, feed_date=date(2026, 7, 20))
+    UserPaperState.objects.create(
+        user=user, paper=paper, saved_at="2026-07-20T10:00:00Z", liked_at="2026-07-20T10:00:00Z"
+    )
+    client.force_login(user)
+
+    saved = client.get(reverse("feed:read_later"))
+    liked = client.get(reverse("feed:liked"))
+
+    assert b'href="/p/1/?from=saved"' in saved.content
+    assert b'href="/p/1/?from=liked"' in liked.content
+
+
+def test_feed_filter_menu_marks_the_applied_design(client, user, circulation):
+    subscribe(user, circulation)
+    make_paper("1", journal=circulation, feed_date=date(2026, 7, 20), is_rct=True)
+    client.force_login(user)
+
+    resp = client.get(reverse("feed:list"), {"design": "rct"})
+
+    body = resp.content.decode()
+    checked = body.split('aria-checked="true"')
+    # "RCT" in the study-design section and "Feed date" in the sort section.
+    assert len(checked) == 3
+    assert checked[1].split("</a>")[0].strip().endswith("RCT")
+    assert 'class="filter-summary"' in body
 
 
 def test_invisible_paper_cannot_be_saved(client, user, circulation):

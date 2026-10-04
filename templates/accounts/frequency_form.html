@@ -1,47 +1,52 @@
 {% extends "base.html" %}
 
+{% block content_class %} grouped{% endblock %}
+
+{% block nav_leading %}{% url 'accounts:account' as account_url %}{% include "_nav_back.html" with href=account_url label="Account" %}{% endblock %}
+
 {% block before_content %}
 {% if is_onboarding %}
 <a href="{% url 'accounts:onboarding_journals' %}" class="back-btn" aria-label="Back">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-</a>
-{% else %}
-<a data-app-nav href="{% url 'accounts:account' %}" class="back-btn" aria-label="Back to account">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+  <svg width="13" height="21" viewBox="0 0 13 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2 2.5 10.5l8 8.5"/></svg>
+  <span>Back</span>
 </a>
 {% endif %}
 {% endblock %}
 
 {% block content %}
+<div class="page-header">
 {% if is_onboarding %}
   <p class="wizard-step">Step {{ step }} of 3</p>
-  <h1 class="page-title" style="margin-bottom:8px">How often should we update your feed?</h1>
-  <p class="page-subtitle" style="margin-bottom:20px">Emails are coming soon — for now the feed itself updates every night regardless of what you pick here.</p>
+  <h1 class="page-title">How often should we update your feed?</h1>
+  <p class="page-subtitle">Emails are coming soon — for now the feed itself updates every night regardless of what you pick here.</p>
 {% else %}
-  <h1 class="page-title" style="margin-bottom:16px">Notifications</h1>
+  <h1 class="page-title">Notifications</h1>
 {% endif %}
+</div>
 
 <form method="post"{% if not is_onboarding %} data-app-submit data-cache-invalidate="account notifications"{% endif %}>
   {% csrf_token %}
   {{ form.non_field_errors }}
   {{ form.update_frequency.errors }}
 
+  <div class="inset-list" role="radiogroup" aria-label="Update frequency">
   {% for radio in form.update_frequency %}
-    <label class="option-row{% if radio.data.selected %} is-selected{% endif %}">
-      <span>
-        <span class="option-label">{{ radio.choice_label }}</span>
-        <span class="option-desc">
+    <label class="inset-row option-check">
+      {{ radio.tag }}
+      <span class="inset-row-copy">
+        <span class="inset-row-label">{{ radio.choice_label }}</span>
+        <span class="inset-row-detail">
           {% if radio.data.value == "daily" %}A fresh set of papers every morning.
           {% elif radio.data.value == "every_3_days" %}A lighter, less frequent digest.
           {% else %}One roundup, once a week.{% endif %}
         </span>
       </span>
-      {{ radio.tag }}
-      <span class="option-dot"></span>
+      <svg class="checkmark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg>
     </label>
   {% endfor %}
+  </div>
 
   <div class="form-status" data-form-status role="status" aria-live="polite"></div>
-  <button type="submit" class="btn btn-primary btn-block" style="margin-top:12px" data-pending-label="Saving…">{% if is_onboarding %}Finish setup{% else %}Save changes{% endif %}</button>
+  <button type="submit" class="btn btn-primary btn-block form-submit" data-pending-label="Saving…">{% if is_onboarding %}Finish setup{% else %}Save changes{% endif %}</button>
 </form>
 {% endblock %}

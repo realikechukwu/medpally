@@ -1,14 +1,16 @@
 {% load static %}<!doctype html>
-<html lang="en">
+<html lang="en" class="app">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}The week's research from the journals you actually read, summarised into a few lines you can scan on the ward.{% endblock %}">
 
-  {# The bar the browser paints around the page: white everywhere except the #}
-  {# landing page, which is a full-bleed brand-coloured hero.                #}
-  <meta name="theme-color" content="{% block theme_color %}#FFFFFF{% endblock %}">
+  {# The bar the browser paints around the page follows the system appearance, #}
+  {# except on the landing page, which is a full-bleed brand-coloured hero.    #}
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="{% block theme_color %}#FFFFFF{% endblock %}">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="{% block theme_color_dark %}#000000{% endblock %}">
 
   <link rel="manifest" href="{% url 'manifest' %}">
   <link rel="icon" href="{% static 'img/brand/favicon.ico' %}" sizes="32x32">
@@ -33,8 +35,24 @@
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
 </head>
-<body class="{% block body_class %}{% endblock %}"{% if request.user.is_authenticated %} data-navigation-user="{{ request.user.pk }}"{% endif %}>
-  {% if active_tab %}{% include "_top_bar.html" %}{% endif %}
+<body class="{% block body_class %}{% endblock %}{% if active_tab %} has-app-chrome{% endif %}"{% if request.user.is_authenticated %} data-navigation-user="{{ request.user.pk }}"{% endif %}>
+  {% if active_tab %}
+  {% comment %}
+    The bar belongs to the page, not the app: each screen decides whether it
+    leads with a back button and what sits on the right, and app.js swaps the
+    whole bar along with the content on in-app navigation.
+  {% endcomment %}
+  <header id="nav-bar" class="nav-bar">
+    <div class="nav-bar-inner">
+      <div class="nav-bar-leading">{% block nav_leading %}{% endblock %}</div>
+      {# Fades in once the page's large title scrolls under the bar. #}
+      <div class="nav-bar-title" aria-hidden="true">{% block nav_title %}{{ bar_title|default:"" }}{% endblock %}</div>
+      <div class="nav-bar-trailing">{% block nav_trailing %}{% endblock %}</div>
+    </div>
+  </header>
+  {% include "_sidebar.html" %}
+  {% endif %}
+
   <main id="app-main" class="app-main{% if active_tab %} has-bottom-nav{% endif %}{% block content_class %}{% endblock %}" tabindex="-1">
     {% if messages %}
     <ul class="messages" data-autodismiss>
@@ -54,5 +72,6 @@
   {% if active_tab %}
   {% include "_bottom_nav.html" %}
   {% endif %}
+  <div class="toast" data-toast role="status" aria-live="polite" hidden></div>
 </body>
 </html>

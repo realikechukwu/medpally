@@ -12,6 +12,15 @@ DESIGN_STUDY_TYPES = {
     "cohort": ("Prospective cohort", "Retrospective cohort"),
 }
 
+# Menu order and wording for the study-design filter.
+DESIGN_LABELS = {
+    "rct": "RCT",
+    "meta-analysis": "Meta-analysis",
+    "systematic-review": "Systematic review",
+    "guideline": "Guideline",
+    "cohort": "Cohort",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class FeedFilters:

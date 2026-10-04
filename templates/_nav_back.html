@@ -1,0 +1,10 @@
+{% comment %}
+  The iOS back button: a chevron and the name of the screen underneath. app.js
+  turns a tap into a history step when that screen is the one the reader came
+  from, which is what brings them back to the same place in a long list; the
+  href is only the way back for someone who arrived on a shared link.
+{% endcomment %}
+<a class="nav-back" data-nav-back href="{{ href }}" aria-label="Back to {{ label }}">
+  <svg width="13" height="21" viewBox="0 0 13 21" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2 2.5 10.5l8 8.5"/></svg>
+  <span>{{ label }}</span>
+</a>

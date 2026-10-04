@@ -1,48 +1,48 @@
 {% extends "base.html" %}
 
-{% block before_content %}
-{% if not is_onboarding %}
-<a data-app-nav href="{% url 'accounts:account' %}" class="back-btn" aria-label="Back to account">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-</a>
-{% endif %}
-{% endblock %}
+{% block content_class %} grouped{% endblock %}
+
+{% block nav_leading %}{% url 'accounts:account' as account_url %}{% include "_nav_back.html" with href=account_url label="Account" %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
 {% if is_onboarding %}
   <p class="wizard-step">Step {{ step }} of 3</p>
-  <h1 class="page-title" style="margin-bottom:24px">Tell us about you</h1>
+  <h1 class="page-title">Tell us about you</h1>
 {% else %}
   <h1 class="page-title">Profile</h1>
-  <p class="page-subtitle" style="margin-bottom:20px">Update how your name, workplace and specialty appear in MedPally.</p>
+  <p class="page-subtitle">Update how your name, workplace and specialty appear in {{ SITE_NAME }}.</p>
 {% endif %}
+</div>
 
 <form method="post"{% if not is_onboarding %} data-app-submit data-cache-invalidate="account feed journals profile"{% endif %}>
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <div class="field">
-    {{ form.full_name.label_tag }}
-    {{ form.full_name }}
-    {{ form.full_name.errors }}
+  <div class="inset-list">
+    <label class="form-row">
+      <span class="form-row-label">{{ form.full_name.label }}</span>
+      {{ form.full_name }}
+    </label>
+    <label class="form-row">
+      <span class="form-row-label">{{ form.workplace.label }}</span>
+      {{ form.workplace }}
+    </label>
   </div>
-  <div class="field">
-    {{ form.workplace.label_tag }}
-    {{ form.workplace }}
-    {{ form.workplace.errors }}
+  <div class="list-section-errors">{{ form.full_name.errors }}{{ form.workplace.errors }}</div>
+
+  <h2 class="list-section-title">{{ form.specialty.label }}</h2>
+  <div class="inset-list" role="radiogroup" aria-label="{{ form.specialty.label }}">
+    {% for radio in form.specialty %}
+    <label class="inset-row option-check">
+      {{ radio.tag }}
+      <span class="inset-row-copy"><span class="inset-row-label">{{ radio.choice_label }}</span></span>
+      <svg class="checkmark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 12.5l5 5L19.5 7"/></svg>
+    </label>
+    {% endfor %}
   </div>
-  <div class="field">
-    <label class="field-label">{{ form.specialty.label }}</label>
-    {{ form.specialty.errors }}
-    <div class="chip-row">
-      {% for radio in form.specialty %}
-        <label class="chip-wrap">
-          {{ radio.tag }}
-          <span class="chip">{{ radio.choice_label }}</span>
-        </label>
-      {% endfor %}
-    </div>
-  </div>
+  <div class="list-section-errors">{{ form.specialty.errors }}</div>
+
   <div class="form-status" data-form-status role="status" aria-live="polite"></div>
-  <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px" data-pending-label="Saving…">{% if is_onboarding %}Continue{% else %}Save changes{% endif %}</button>
+  <button type="submit" class="btn btn-primary btn-block form-submit" data-pending-label="Saving…">{% if is_onboarding %}Continue{% else %}Save changes{% endif %}</button>
 </form>
 {% endblock %}

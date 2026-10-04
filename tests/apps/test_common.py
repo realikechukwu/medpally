@@ -62,7 +62,11 @@ def test_landing_page_does_not_swallow_the_onboarding_routes(client):
 def test_landing_page_dresses_the_browser_chrome_in_the_hero_colour(client):
     """The hero runs edge to edge, so a white browser bar would show as a seam."""
     resp = client.get(reverse("landing"))
-    assert b'<meta name="theme-color" content="#123A4D">' in resp.content
+    for scheme in (b"light", b"dark"):
+        assert (
+            b'<meta name="theme-color" media="(prefers-color-scheme: ' + scheme + b')" '
+            b'content="#123A4D">'
+        ) in resp.content
 
 
 # ---------------------------------------------------------------- installable app

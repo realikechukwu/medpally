@@ -357,7 +357,8 @@ def test_settings_pages_keep_account_navigation_and_enhance_saves(
         assert response.status_code == 200
         assert b'id="bottom-nav"' in response.content
         assert b"data-app-submit" in response.content
-        assert b"data-app-nav" in response.content
+        # Back to Account steps back through history in the app.
+        assert b'data-nav-back href="/account/"' in response.content
 
 
 def test_specialty_change_reports_added_journals_with_review_action(

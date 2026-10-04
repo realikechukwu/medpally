@@ -2,32 +2,54 @@
 
 {% block content_class %} feed-flush{% endblock %}
 
+{% block nav_title %}Your feed{% endblock %}
+
+{% block nav_trailing %}
+{% comment %}
+  Filter and sort live behind one button in the bar, the way Mail and Files
+  keep list options out of the list. The glyph fills in while anything other
+  than the default view is applied, so a filtered feed never passes for the
+  whole one.
+{% endcomment %}
+<details class="menu" data-menu>
+  <summary class="nav-icon-btn{% if filters.design or filters.sort == 'pub' %} is-active{% endif %}" aria-label="Filter and sort">
+    <svg class="nav-icon-outline" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M7.5 9.5h9M9.2 12.5h5.6M10.8 15.5h2.4"/></svg>
+    <svg class="nav-icon-filled" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20ZM7.5 8.7a.8.8 0 0 0 0 1.6h9a.8.8 0 0 0 0-1.6h-9Zm1.7 3a.8.8 0 0 0 0 1.6h5.6a.8.8 0 0 0 0-1.6H9.2Zm1.6 3a.8.8 0 0 0 0 1.6h2.4a.8.8 0 0 0 0-1.6h-2.4Z"/></svg>
+  </summary>
+  <div class="menu-panel menu-panel-end" role="menu">
+    <div class="menu-section-title">Study design</div>
+    {% for value, label in design_choices %}
+    <a role="menuitemradio" aria-checked="{% if filters.design == value or not filters.design and not value %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring design=value|default:None cursor=None %}">
+      <span class="menu-check" aria-hidden="true"></span>{{ label }}
+    </a>
+    {% endfor %}
+    <div class="menu-section-title">Sort by</div>
+    <a role="menuitemradio" aria-checked="{% if filters.sort != 'pub' %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring sort='feed' cursor=None %}"><span class="menu-check" aria-hidden="true"></span>Feed date</a>
+    <a role="menuitemradio" aria-checked="{% if filters.sort == 'pub' %}true{% else %}false{% endif %}" data-app-nav="replace" class="menu-item" href="{% url 'feed:list' %}{% querystring sort='pub' cursor=None %}"><span class="menu-check" aria-hidden="true"></span>Publication date</a>
+  </div>
+</details>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
+  <p class="page-eyebrow">{% now "l j F" %}</p>
   <h1 class="page-title">Your feed</h1>
   {% if request.user.profile.specialty %}<p class="page-subtitle">{{ request.user.profile.specialty.name }}</p>{% endif %}
-  <div class="feed-controls">
-  <div class="chip-row">
-    <a class="pill-tab{% if filters.tab == 'all' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='all' cursor=None %}">All</a>
-    <a class="pill-tab{% if filters.tab == 'featured' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='featured' cursor=None %}">Featured</a>
-    <a class="pill-tab{% if filters.tab == 'unseen' %} pill-tab-active{% endif %}" href="{% url 'feed:list' %}{% querystring tab='unseen' cursor=None %}">Unseen</a>
+
+  <nav class="segmented" aria-label="Feed view">
+    <a data-app-nav="replace" class="segmented-item{% if filters.tab == 'all' %} is-selected{% endif %}"{% if filters.tab == 'all' %} aria-current="page"{% endif %} href="{% url 'feed:list' %}{% querystring tab='all' cursor=None %}">All</a>
+    <a data-app-nav="replace" class="segmented-item{% if filters.tab == 'featured' %} is-selected{% endif %}"{% if filters.tab == 'featured' %} aria-current="page"{% endif %} href="{% url 'feed:list' %}{% querystring tab='featured' cursor=None %}">Featured</a>
+    <a data-app-nav="replace" class="segmented-item{% if filters.tab == 'unseen' %} is-selected{% endif %}"{% if filters.tab == 'unseen' %} aria-current="page"{% endif %} href="{% url 'feed:list' %}{% querystring tab='unseen' cursor=None %}">Unseen</a>
+  </nav>
+
+  {% if filters.design or filters.sort == 'pub' %}
+  <div class="filter-summary">
+    <span>
+      {% if filters.design %}{{ design_label }}{% endif %}{% if filters.design and filters.sort == 'pub' %} · {% endif %}{% if filters.sort == 'pub' %}By publication date{% endif %}
+    </span>
+    <a data-app-nav="replace" href="{% url 'feed:list' %}{% querystring design=None sort=None cursor=None %}">Clear</a>
   </div>
-  <details class="feed-menu">
-    <summary aria-label="Feed filters">☷ {% if filters.design %}{{ filters.design|title }}{% elif filters.sort == 'pub' %}Publication date{% else %}Filter & sort{% endif %}</summary>
-    <div class="feed-menu-panel">
-      <strong>Study design</strong>
-      <a href="{% url 'feed:list' %}{% querystring design=None cursor=None %}">Any design</a>
-      <a href="{% url 'feed:list' %}{% querystring design='rct' cursor=None %}">RCT</a>
-      <a href="{% url 'feed:list' %}{% querystring design='meta-analysis' cursor=None %}">Meta-analysis</a>
-      <a href="{% url 'feed:list' %}{% querystring design='systematic-review' cursor=None %}">Systematic review</a>
-      <a href="{% url 'feed:list' %}{% querystring design='guideline' cursor=None %}">Guideline</a>
-      <a href="{% url 'feed:list' %}{% querystring design='cohort' cursor=None %}">Cohort</a>
-      <strong>Sort by</strong>
-      <a href="{% url 'feed:list' %}{% querystring sort='feed' cursor=None %}">Feed date</a>
-      <a href="{% url 'feed:list' %}{% querystring sort='pub' cursor=None %}">Publication date</a>
-    </div>
-  </details>
-  </div>
+  {% endif %}
 </div>
 
 <div id="cards">
@@ -36,7 +58,7 @@
 
 <button type="button" class="back-to-top" data-back-to-top
   aria-label="Back to top" title="Back to top" hidden>
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" stroke-width="2.4" stroke-linecap="round"
     stroke-linejoin="round" aria-hidden="true">
     <path d="m6 15 6-6 6 6"/>

@@ -1,0 +1,34 @@
+{% comment %}
+  On a phone the tab bar is the navigation. From tablet-landscape widths up the
+  same four destinations move into a sidebar, the way iPadOS and macOS present
+  a tab-based app, so a wide screen is not navigated from a strip pinned to the
+  bottom edge. Hidden by CSS below that width.
+{% endcomment %}
+<aside class="sidebar" aria-label="Menu">
+  <a class="sidebar-brand" href="{% url 'feed:list' %}" data-tab-nav><span class="brand-tile">{% include "_logo.html" %}</span>{{ SITE_NAME }}</a>
+  <nav class="sidebar-nav">
+    <a data-tab-nav href="{% url 'feed:list' %}" class="sidebar-link{% if active_tab == 'feed' %} is-active{% endif %}"{% if active_tab == 'feed' %} aria-current="page"{% endif %}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="3"/><path d="M7.5 9h9M7.5 12.5h9M7.5 16h5"/></svg>
+      <span>Feed</span>
+    </a>
+    <a data-tab-nav href="{% url 'feed:read_later' %}" class="sidebar-link{% if active_tab == 'saved' %} is-active{% endif %}"{% if active_tab == 'saved' %} aria-current="page"{% endif %}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4-6.5 4v-16a1 1 0 0 1 1-1z"/></svg>
+      <span>Saved</span>
+    </a>
+    <a data-tab-nav href="{% url 'feed:search' %}" class="sidebar-link{% if active_tab == 'search' %} is-active{% endif %}"{% if active_tab == 'search' %} aria-current="page"{% endif %}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.7-4.7"/></svg>
+      <span>Search</span>
+    </a>
+    <a data-tab-nav href="{% url 'accounts:account' %}" class="sidebar-link{% if active_tab == 'account' %} is-active{% endif %}"{% if active_tab == 'account' %} aria-current="page"{% endif %}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c0-3.9 3.4-6 7.5-6s7.5 2.1 7.5 6"/></svg>
+      <span>Account</span>
+    </a>
+  </nav>
+  <a data-tab-nav class="sidebar-footer" href="{% url 'accounts:account' %}">
+    <span class="avatar avatar-sm" aria-hidden="true">{{ user_initials }}</span>
+    <span class="sidebar-user">
+      <span class="sidebar-user-name">{{ request.user.profile.full_name|default:request.user.email }}</span>
+      <span class="sidebar-user-email">{{ request.user.email }}</span>
+    </span>
+  </a>
+</aside>

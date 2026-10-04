@@ -2,17 +2,19 @@
 
 {% block content_class %} feed-flush{% endblock %}
 
+{% block nav_title %}{% if collection == 'liked' %}Liked{% else %}Saved{% endif %}{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <h1 class="page-title">Saved</h1>
-  <div class="chip-row collection-tabs" aria-label="Saved paper collections">
-    <a class="pill-tab{% if collection == 'saved' %} pill-tab-active{% endif %}"
+  <nav class="segmented collection-tabs" aria-label="Saved paper collections">
+    <a data-app-nav="replace" class="segmented-item{% if collection == 'saved' %} is-selected{% endif %}"
       {% if collection == 'saved' %}aria-current="page"{% endif %}
       href="{% url 'feed:read_later' %}">Saved</a>
-    <a class="pill-tab{% if collection == 'liked' %} pill-tab-active{% endif %}"
+    <a data-app-nav="replace" class="segmented-item{% if collection == 'liked' %} is-selected{% endif %}"
       {% if collection == 'liked' %}aria-current="page"{% endif %}
       href="{% url 'feed:liked' %}">Liked</a>
-  </div>
+  </nav>
 </div>
 <div id="cards">
   {% include "feed/_cards.html" %}

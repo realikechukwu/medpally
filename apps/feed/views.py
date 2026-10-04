@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 from apps.papers.models import Paper
 
 from . import services
-from .filters import FeedFilters
+from .filters import DESIGN_LABELS, FeedFilters
 from .models import UserPaperState
 
 
@@ -112,6 +112,8 @@ def feed_list(request: HttpRequest) -> HttpResponse:
         "groups": groups,
         "next_cursor": page.next_cursor,
         "filters": filters,
+        "design_choices": [("", "Any design"), *DESIGN_LABELS.items()],
+        "design_label": DESIGN_LABELS.get(filters.design, ""),
         "next_url_name": "feed:list",
         "active_tab": "feed",
         # Twenty hidden cards are barely a hundred pixels tall, so a "revealed"
@@ -159,6 +161,7 @@ def _paper_collection(request: HttpRequest, *, collection: str) -> HttpResponse:
         "next_url_name": next_url_name,
         "active_tab": "saved",
         "collection": collection,
+        "from_tab": collection,
         "empty_title": empty_title,
         "empty_body": empty_body,
         "empty_icon": collection,
@@ -216,6 +219,18 @@ def search(request: HttpRequest) -> HttpResponse:
     )
 
 
+# Where a paper was opened from decides which tab stays lit while it is open
+# and what its back button is called — the way a pushed screen on iOS keeps
+# its tab and names the screen underneath it.
+_DETAIL_ORIGINS = {
+    "search": ("search", "Search", "feed:search"),
+    "recent": ("search", "Search", "feed:search"),
+    "saved": ("saved", "Saved", "feed:read_later"),
+    "liked": ("saved", "Liked", "feed:liked"),
+}
+_DEFAULT_DETAIL_ORIGIN = ("feed", "Feed", "feed:list")
+
+
 def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
     """Public share page: the generated note and a PubMed link, no login."""
     paper = get_object_or_404(
@@ -224,16 +239,24 @@ def paper_detail(request: HttpRequest, pmid: str) -> HttpResponse:
         is_visible=True,
         summary_status=Paper.SummaryStatus.OK,
     )
-    state = None
+    context: dict = {"paper": paper, "state": None}
     if request.user.is_authenticated:
+        origin = request.GET.get("from")
         now = timezone.now()
         defaults = {"opened_at": now}
-        if request.GET.get("from") == "search":
+        if origin == "search":
             defaults["searched_at"] = now
-        state, _ = UserPaperState.objects.update_or_create(
+        context["state"], _ = UserPaperState.objects.update_or_create(
             user=request.user, paper=paper, defaults=defaults
         )
-    return render(request, "feed/paper_detail.html", {"paper": paper, "state": state})
+        tab, back_label, back_url_name = _DETAIL_ORIGINS.get(origin, _DEFAULT_DETAIL_ORIGIN)
+        context.update(
+            active_tab=tab,
+            back_label=back_label,
+            back_url=reverse(back_url_name),
+            bar_title=paper.journal.display_name if paper.journal else paper.journal_name_raw,
+        )
+    return render(request, "feed/paper_detail.html", context)
 
 
 def _get_actionable_paper(pmid: str) -> Paper:
