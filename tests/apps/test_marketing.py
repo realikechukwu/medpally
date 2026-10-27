@@ -34,6 +34,10 @@ def test_footer_has_small_plain_information_links_on_every_page(client):
         assert b'href="/privacy/">Privacy</a>' in response.content
         assert b'href="/terms/">Terms</a>' in response.content
         assert b'href="/ai-summaries/">AI summarisation</a>' in response.content
+        assert (
+            b'href="https://find.medpally.com/">Cardiology learning resources</a>'
+            in response.content
+        )
 
 
 @PUBLIC_SETTINGS
